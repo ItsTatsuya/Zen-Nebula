@@ -25,9 +25,21 @@ browser[transparent="true"] {
   --zen-main-browser-background: transparent !important;
 }
 
-/* Required for blur rendering */
-browser {
-  transform: translateZ(0);
+/*
+ * Required for blur rendering after Zen 1.19.9b+
+ *
+ * Zen nested #navigator-toolbox inside #browser and changed content compositing.
+ * Chrome-side backdrop-filter no longer samples web content unless content
+ * browsers get this layering hint (same as zen.theme.acrylic-elements in
+ * zen-browser-container.css). The old translateZ(0) alone is not enough.
+ */
+:root:not([inDOMFullscreen="true"])
+  #tabbrowser-tabbox
+  #tabbrowser-tabpanels
+  .browserSidebarContainer
+  browser[type="content"] {
+  translate: 0;
+  backface-visibility: hidden;
 }
 
 /* ---------------------- TABS: NO SHADOW ---------------------- */

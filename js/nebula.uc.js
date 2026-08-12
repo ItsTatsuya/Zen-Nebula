@@ -160,6 +160,12 @@
         });
       }
 
+      // Zen 1.19.9b+ broke chrome backdrop-filter sampling of web content after
+      // #navigator-toolbox was nested inside #browser. Zen's acrylic-elements
+      // pref re-enables the compositor layering needed for compact sidebar blur
+      // (see zen-browser/desktop acrylic CSS + Nebula issue #340 / #344).
+      this.ensureAcrylicBlur();
+
       // Compact mode detection
       this.compactObserver = Nebula.observePresence(
         '[zen-compact-mode="true"]',
@@ -185,6 +191,33 @@
       this.updateFaviconColor();
 
       Nebula.logger.log("✅ [Polyfill] Detection active.");
+    }
+
+    /**
+     * Ensure compact-mode glass can blur page content.
+     * Release builds default zen.theme.acrylic-elements to false (Twilight-only),
+     * which leaves the floating sidebar translucent with no blur.
+     */
+    ensureAcrylicBlur() {
+      const PREF = "zen.theme.acrylic-elements";
+      try {
+        const ServicesRef =
+          globalThis.Services ||
+          ChromeUtils.importESModule(
+            "resource://gre/modules/Services.sys.mjs",
+          ).Services;
+        const prefs = ServicesRef.prefs;
+        if (!prefs.getBoolPref(PREF, false)) {
+          prefs.setBoolPref(PREF, true);
+          Nebula.logger.log(
+            `🔧 [Polyfill] Enabled ${PREF} for compact sidebar blur (Zen 1.19.9b+ compositor fix).`,
+          );
+        }
+      } catch (err) {
+        Nebula.logger.warn(
+          `⚠️ [Polyfill] Could not enable ${PREF}: ${err}`,
+        );
+      }
     }
 
     updateToolbarModes() {

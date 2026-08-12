@@ -65,22 +65,40 @@ html[nebula-collapsed-toolbar] {
 
 /* --- Titlebar theming --- */
 
-/* Disable outline */
+/*
+ * Compact floating sidebar glass (vertical tabs).
+ * Zen 1.19.9b+ only applies backdrop-filter when zen.theme.acrylic-elements is on,
+ * and uses a dark-tinted filter. Nebula always applies its own glass tokens so the
+ * blur matches the rest of the theme (and works even if acrylic was off at parse).
+ */
+html[nebula-compact-mode] #titlebar > .zen-toolbar-background,
+html[nebula-compact-mode] #titlebar > .zen-browser-generic-background {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-radius: var(--nebula-border-radius, 13px) !important;
+  box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
+  backdrop-filter: var(--nebula-glass) !important;
+  -webkit-backdrop-filter: var(--nebula-glass) !important;
+  /* Let the filter sample layers outside this isolated box after Zen's contain:content */
+  isolation: auto !important;
+  contain: none !important;
+}
+
+/* Frosted tint on Zen gradient pseudo-layers (replaces opaque/outline defaults) */
+html[nebula-compact-mode] #titlebar > .zen-toolbar-background::before,
+html[nebula-compact-mode] #titlebar > .zen-toolbar-background::after,
+html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::before,
+html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::after {
+  outline: none !important;
+  background: var(--nebula-color-glass) !important;
+  background-color: var(--nebula-color-glass) !important;
+  border-radius: inherit !important;
+}
+
+/* Keep non-compact Zen toolbar outline disabled where Nebula still touches it */
 .zen-toolbar-background::before,
 .zen-toolbar-background::after {
   outline: none !important;
-  background-color: light-dark(
-    rgb(255 255 255 / 40%),
-    rgb(0 0 0 / 40%)
-  ) !important;
-}
-
-/* Titlebar styling */
-html[nebula-compact-mode] #titlebar > .zen-browser-generic-background {
-  padding: 8px;
-  border-radius: 13px !important;
-  background-color: transparent !important;
-  backdrop-filter: var(--nebula-glass) !important;
 }
 
 :root[zen-right-side="true"][nebula-compact-mode] #titlebar {
