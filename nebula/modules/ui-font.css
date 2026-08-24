@@ -1,10 +1,58 @@
 /* ------------------------- UI FONT ------------------------- */
 
 :root {
-  --nebula-ui-font: var(--var-nebula-ui-font, "Poppins");
-  --nebula-ui-font-weight: var(--var-nebula-ui-font-weight, 400);
+  --nebula-ui-font: "Poppins";
+  --nebula-ui-font-weight: 400;
   --fontfamily-ui: var(--nebula-ui-font);
   --fontfamily-weight: var(--nebula-ui-font-weight);
+}
+
+@media (-moz-pref("nebula-ui-font", 1)) {
+  :root {
+    --nebula-ui-font: system-ui;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font", 2)) {
+  :root {
+    --nebula-ui-font: "Segoe UI";
+  }
+}
+
+@media (-moz-pref("nebula-ui-font", 3)) {
+  :root {
+    --nebula-ui-font: Inter;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font", 4)) {
+  :root {
+    --nebula-ui-font: Comfortaa;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font", 5)) {
+  :root {
+    --nebula-ui-font: Geist;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font", 6)) {
+  :root {
+    --nebula-ui-font: "IBM Plex Sans";
+  }
+}
+
+@media (-moz-pref("nebula-ui-font", 7)) {
+  :root {
+    --nebula-ui-font: Arial;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font", 8)) {
+  :root {
+    --nebula-ui-font: inherit;
+  }
 }
 
 #customization-container,

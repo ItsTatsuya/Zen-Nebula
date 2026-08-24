@@ -58,10 +58,6 @@ without searching through the code directly */
     var(--var-nebula-color-shadow-light, rgb(255 255 255 / 5.5%)),
     var(--var-nebula-color-shadow-dark, rgb(0 0 0 / 55%))
   ) !important;
-
-  /* 🔤 Typography — font must be installed on the system */
-  --nebula-ui-font: var(--var-nebula-ui-font, "Poppins") !important;
-  --nebula-ui-font-weight: var(--var-nebula-ui-font-weight, 400) !important;
 }
 
 /* DO NOT ADD OTHER CSS BELOW */

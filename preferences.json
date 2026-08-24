@@ -172,21 +172,21 @@
   },
   {
     "type": "dropdown",
-    "property": "var-nebula-ui-font",
+    "property": "nebula-ui-font",
     "label": "UI Font (must be installed)",
-    "defaultValue": "Poppins",
+    "value": "number",
+    "defaultValue": 0,
     "placeholder": false,
-    "processAs": "var",
     "options": [
-      { "label": "Poppins (Default)", "value": "Poppins" },
-      { "label": "System UI", "value": "system-ui" },
-      { "label": "Segoe UI", "value": "\"Segoe UI\"" },
-      { "label": "Inter", "value": "Inter" },
-      { "label": "Comfortaa", "value": "Comfortaa" },
-      { "label": "Geist", "value": "Geist" },
-      { "label": "IBM Plex Sans", "value": "\"IBM Plex Sans\"" },
-      { "label": "Arial", "value": "Arial" },
-      { "label": "Browser default", "value": "inherit" }
+      { "label": "Poppins (Default)", "value": 0 },
+      { "label": "System UI", "value": 1 },
+      { "label": "Segoe UI", "value": 2 },
+      { "label": "Inter", "value": 3 },
+      { "label": "Comfortaa", "value": 4 },
+      { "label": "Geist", "value": 5 },
+      { "label": "IBM Plex Sans", "value": 6 },
+      { "label": "Arial", "value": 7 },
+      { "label": "Browser default", "value": 8 }
     ]
   },
   {

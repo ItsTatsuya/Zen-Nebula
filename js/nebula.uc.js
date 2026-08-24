@@ -171,16 +171,9 @@
       };
       try {
         const ServicesRef = this._services();
-        ServicesRef.prefs.addObserver(
-          "var-nebula-ui-font",
-          this._fontPrefObserver,
-        );
+        ServicesRef.prefs.addObserver("nebula-ui-font", this._fontPrefObserver);
         ServicesRef.prefs.addObserver(
           "var-nebula-ui-font-custom",
-          this._fontPrefObserver,
-        );
-        ServicesRef.prefs.addObserver(
-          "var-nebula-ui-font-weight",
           this._fontPrefObserver,
         );
       } catch {}
@@ -246,6 +239,38 @@
             `🔧 [Polyfill] Enabled ${transparentPref} so web content can composite with chrome glass.`,
           );
         }
+
+        // Same keys original Nebula writes when its settings panel is opened.
+        // Sine only applies string defaultValues during that parse, so a
+        // first-time install of this fork never created them otherwise.
+        const stringDefaults = {
+          "var-nebula-glass-blur": "32px",
+          "var-nebula-glass-saturation": "140%",
+          "var-nebula-color-glass-light": "rgba(255, 255, 255, 0.4)",
+          "var-nebula-color-glass-dark": "rgba(0, 0, 0, 0.4)",
+          "var-nebula-ui-tint-light": "rgba(255,255,255,0.2)",
+          "var-nebula-ui-tint-dark": "rgba(0,0,0,0.2)",
+          "var-nebula-website-tint-light": "rgba(255,255,255,0)",
+          "var-nebula-website-tint-dark": "rgba(0,0,0,0)",
+          "var-nebula-tabs-minimum-light": "rgba(255, 255, 255, 0.1)",
+          "var-nebula-tabs-minimum-dark": "rgba(0, 0, 0, 0.2)",
+          "var-nebula-tabs-default-light": "rgba(255,255,255,0.25)",
+          "var-nebula-tabs-default-dark": "rgba(0,0,0,0.35)",
+          "var-nebula-tabs-hover-light": "rgba(255,255,255,0.35)",
+          "var-nebula-tabs-hover-dark": "rgba(0,0,0,0.45)",
+          "var-nebula-tabs-selected-light": "rgba(255,255,255,0.45)",
+          "var-nebula-tabs-selected-dark": "rgba(0,0,0,0.55)",
+          "var-nebula-color-shadow-light": "rgba(255, 255, 255, 0.055)",
+          "var-nebula-color-shadow-dark": "rgba(0, 0, 0, 0.55)",
+          "var-nebula-border-radius": "13px",
+          "var-nebula-essentials-width": "60px",
+          "var-nebula-workspace-grayscale": "100%",
+        };
+        for (const [name, value] of Object.entries(stringDefaults)) {
+          if (!prefs.prefHasUserValue(name)) {
+            prefs.setCharPref(name, value);
+          }
+        }
       } catch (err) {
         Nebula.logger.warn(
           `⚠️ [Polyfill] Could not apply runtime prefs: ${err}`,
@@ -276,17 +301,21 @@
         const custom = prefs
           .getCharPref("var-nebula-ui-font-custom", "")
           .trim();
-        const preset = prefs.getCharPref("var-nebula-ui-font", "Poppins");
-        const weight = prefs.getCharPref("var-nebula-ui-font-weight", "400");
+        const preset = [
+          "Poppins",
+          "system-ui",
+          "Segoe UI",
+          "Inter",
+          "Comfortaa",
+          "Geist",
+          "IBM Plex Sans",
+          "Arial",
+          "inherit",
+        ][prefs.getIntPref("nebula-ui-font", 0)];
         const font =
           this._quoteFont(custom || preset || "Poppins") || "Poppins";
         this.root.style.setProperty("--nebula-ui-font", font, "important");
         this.root.style.setProperty("--fontfamily-ui", font, "important");
-        this.root.style.setProperty(
-          "--nebula-ui-font-weight",
-          weight || "400",
-          "important",
-        );
       } catch (err) {
         this.root.style.setProperty("--nebula-ui-font", "Poppins", "important");
         Nebula.logger.warn(`⚠️ [Polyfill] Could not apply UI font: ${err}`);
@@ -462,13 +491,9 @@
       if (this._fontPrefObserver) {
         try {
           const prefs = this._services().prefs;
-          prefs.removeObserver("var-nebula-ui-font", this._fontPrefObserver);
+          prefs.removeObserver("nebula-ui-font", this._fontPrefObserver);
           prefs.removeObserver(
             "var-nebula-ui-font-custom",
-            this._fontPrefObserver,
-          );
-          prefs.removeObserver(
-            "var-nebula-ui-font-weight",
             this._fontPrefObserver,
           );
         } catch {}
