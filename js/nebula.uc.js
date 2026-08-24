@@ -166,17 +166,29 @@
       // (see zen-browser/desktop acrylic CSS + Nebula issue #340 / #344).
       this.ensureRuntimePrefs();
       this.applyUiFont();
-      this._fontPrefObserver = {
-        observe: () => this.applyUiFont(),
-      };
       try {
-        const ServicesRef = this._services();
-        ServicesRef.prefs.addObserver("nebula-ui-font", this._fontPrefObserver);
-        ServicesRef.prefs.addObserver(
-          "var-nebula-ui-font-custom",
-          this._fontPrefObserver,
-        );
-      } catch {}
+        this._fontPrefObserver = {
+          QueryInterface: ChromeUtils.generateQI(["nsIObserver"]),
+          observe: () => this.applyUiFont(),
+        };
+        const prefs = this._services().prefs;
+        prefs.addObserver("nebula-ui-font", this._fontPrefObserver);
+        prefs.addObserver("var-nebula-ui-font-custom", this._fontPrefObserver);
+      } catch (err) {
+        this._fontPrefObserver = { observe: () => this.applyUiFont() };
+        try {
+          const prefs = this._services().prefs;
+          prefs.addObserver("nebula-ui-font", this._fontPrefObserver);
+          prefs.addObserver(
+            "var-nebula-ui-font-custom",
+            this._fontPrefObserver,
+          );
+        } catch (err2) {
+          Nebula.logger.warn(
+            `⚠️ [Polyfill] Font pref observer not attached: ${err2}`,
+          );
+        }
+      }
 
       // Compact mode detection
       this.compactObserver = Nebula.observePresence(
@@ -268,7 +280,7 @@
         };
         for (const [name, value] of Object.entries(stringDefaults)) {
           if (!prefs.prefHasUserValue(name)) {
-            prefs.setCharPref(name, value);
+            prefs.setStringPref(name, value);
           }
         }
 
@@ -308,6 +320,22 @@
       }
     }
 
+    _readStringPref(prefs, name, fallback = "") {
+      try {
+        const type = prefs.getPrefType(name);
+        if (type === 0) return fallback;
+        if (type === 64) return String(prefs.getIntPref(name));
+        if (type === 128) return prefs.getBoolPref(name) ? "true" : "false";
+        return prefs.getStringPref(name, fallback);
+      } catch {
+        try {
+          return prefs.getCharPref(name, fallback);
+        } catch {
+          return fallback;
+        }
+      }
+    }
+
     _quoteFontFamily(name) {
       const value = String(name || "").trim();
       if (!value) return "";
@@ -329,24 +357,21 @@
       try {
         const prefs = this._services().prefs;
         this._migrateUiFontPref(prefs);
-        const custom = prefs
-          .getCharPref("var-nebula-ui-font-custom", "")
-          .trim();
-        let preset = "browser";
-        if (prefs.getPrefType("nebula-ui-font") > 0) {
-          preset = String(prefs.getStringPref("nebula-ui-font", "browser"));
-        }
+        const custom = this._readStringPref(
+          prefs,
+          "var-nebula-ui-font-custom",
+        ).trim();
+        const preset = this._readStringPref(prefs, "nebula-ui-font", "browser");
 
         this.root.style.removeProperty("--nebula-ui-font");
         this.root.style.removeProperty("--nebula-ui-font-custom");
         this.root.style.removeProperty("--fontfamily-ui");
 
         if (custom) {
+          const stack = this._quoteFontFamily(custom);
           this.root.setAttribute("nebula-ui-font", "custom");
-          this.root.style.setProperty(
-            "--nebula-ui-font-custom",
-            this._quoteFontFamily(custom),
-          );
+          this.root.style.setProperty("--nebula-ui-font", stack);
+          this.root.style.setProperty("--nebula-ui-font-custom", stack);
           return;
         }
 

@@ -56,7 +56,9 @@ html[nebula-collapsed-toolbar] {
   pointer-events: none;
   border-radius: 11px;
   opacity: 0;
-  background-color: light-dark(rgb(200 200 200 / 100%), rgb(30 30 30 / 100%));
+  /* Must stay transparent: a solid fill is sampled by compact sidebar
+   * backdrop-filter and makes glass look opaque. */
+  background-color: transparent;
 }
 
 #Nebula-titlebar-background.visible {
@@ -116,7 +118,8 @@ html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::after,
   background-color: var(--nebula-color-glass) !important;
 }
 
-:root[zen-right-side="true"][nebula-compact-mode] #titlebar {
+:root[zen-right-side="true"][nebula-compact-mode] #titlebar,
+:root[zen-right-side="true"][zen-compact-mode="true"] #titlebar {
   left: auto !important;
   right: var(--zen-element-separation) !important;
 }

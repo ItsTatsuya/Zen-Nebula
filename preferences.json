@@ -194,8 +194,8 @@
   {
     "type": "string",
     "property": "var-nebula-ui-font-custom",
-    "label": "Custom UI Font (optional, overrides the menu)",
-    "placeholder": "Leave empty to use the menu"
+    "label": "Custom UI Font (optional, click away to apply)",
+    "placeholder": "e.g. Cascadia Code"
   },
 
   {

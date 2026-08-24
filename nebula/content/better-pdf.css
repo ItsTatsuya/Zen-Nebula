@@ -52,8 +52,8 @@ as they use the correct format.
   --glass-shadow-size: 10px;
   --glass-shadow-opacity: 65%;
 
-  /* Custom fonts experiment (must be an installed font) */
-  --custom-font: var(--var-nebula-ui-font, "Poppins");
+  /* Follow chrome UI font when set; otherwise the viewer default */
+  --custom-font: var(--nebula-ui-font, inherit);
 
   /* pdf.js */
   --pdfjs-topbar-max-width: 750px; /* use calc(100% - 10px) for max width */
