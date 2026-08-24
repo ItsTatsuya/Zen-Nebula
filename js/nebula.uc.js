@@ -295,6 +295,10 @@
         }
       }
 
+      if (prefs.getPrefType("nebula-ui-font-weight") === 0) {
+        prefs.setStringPref("nebula-ui-font-weight", "400");
+      }
+
       const oldCustom = "var-nebula-ui-font-custom";
       const newCustom = "nebula-ui-font-custom";
       if (prefs.getPrefType(oldCustom) === 32) {

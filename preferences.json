@@ -192,6 +192,22 @@
     ]
   },
   {
+    "type": "dropdown",
+    "property": "nebula-ui-font-weight",
+    "label": "UI Font Weight (~only applies when a UI font other than Browser default is used~)",
+    "defaultValue": "400",
+    "placeholder": false,
+    "options": [
+      { "label": "Thin (100)", "value": "100" },
+      { "label": "Extra Light (200)", "value": "200" },
+      { "label": "Light (300)", "value": "300" },
+      { "label": "Regular (400)", "value": "400" },
+      { "label": "Medium (500)", "value": "500" },
+      { "label": "Semi Bold (600)", "value": "600" },
+      { "label": "Bold (700)", "value": "700" }
+    ]
+  },
+  {
     "type": "checkbox",
     "property": "nebula-ui-font-custom-enable",
     "label": "Use a *custom* UI font (must already be installed on the system)",

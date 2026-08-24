@@ -85,6 +85,49 @@
   }
 }
 
+/* Chrome labels often use 500/600. Poppins at those weights looks much
+ * heavier than Segoe UI, which is why a family-only override looks "off".
+ * Default 400 matches the old --fontfamily-weight: 400 userChrome. */
+:root {
+  --nebula-ui-font-weight: 400;
+}
+
+@media (-moz-pref("nebula-ui-font-weight", "100")) {
+  :root {
+    --nebula-ui-font-weight: 100;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font-weight", "200")) {
+  :root {
+    --nebula-ui-font-weight: 200;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font-weight", "300")) {
+  :root {
+    --nebula-ui-font-weight: 300;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font-weight", "500")) {
+  :root {
+    --nebula-ui-font-weight: 500;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font-weight", "600")) {
+  :root {
+    --nebula-ui-font-weight: 600;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font-weight", "700")) {
+  :root {
+    --nebula-ui-font-weight: 700;
+  }
+}
+
 @media (not (-moz-pref("nebula-ui-font", "browser"))) {
   :is(
     #nav-bar,
@@ -108,10 +151,13 @@
     .tab-label,
     .tab-text,
     .toolbarbutton-text,
+    .sidebar-panel,
+    .zen-current-workspace-indicator-name,
     #zen-tabs-wrapper,
     #navigator-toolbox *:not(.zen-toolbar-background, #zen-toolbar-background)
   ) {
     font-family: var(--nebula-ui-font) !important;
+    font-weight: var(--nebula-ui-font-weight, 400) !important;
   }
 }
 
@@ -138,9 +184,12 @@
     .tab-label,
     .tab-text,
     .toolbarbutton-text,
+    .sidebar-panel,
+    .zen-current-workspace-indicator-name,
     #zen-tabs-wrapper,
     #navigator-toolbox *:not(.zen-toolbar-background, #zen-toolbar-background)
   ) {
     font-family: var(--nebula-ui-font) !important;
+    font-weight: var(--nebula-ui-font-weight, 400) !important;
   }
 }
