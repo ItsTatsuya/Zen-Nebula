@@ -1,61 +1,91 @@
 /* ------------------------- UI FONT ------------------------- */
 /*
  * Default is the browser font: no font-family override at all.
- * Applying font-family/font-weight to #navigator-toolbox restyles the
- * compact sidebar container that hosts backdrop-filter glass, which
- * is why changing the font was able to kill blur.
- * Opt-in only, and never target #navigator-toolbox itself.
+ * Fonts are applied the same way Arc 2.0 applies optional string prefs:
+ * Sine injects string fields as :root CSS variables, and -moz-pref()
+ * (checkbox / dropdown) decides when to consume them. No JS attributes.
+ *
+ * Never set font-family on #navigator-toolbox itself — that restyles the
+ * compact sidebar host of backdrop-filter and kills glass.
  */
 
-html[nebula-ui-font="poppins"] {
-  --nebula-ui-font: "Poppins", system-ui, "Segoe UI", sans-serif;
+@media (-moz-pref("nebula-ui-font", "poppins")) {
+  :root {
+    --nebula-ui-font: "Poppins", system-ui, "Segoe UI", sans-serif;
+  }
 }
 
-html[nebula-ui-font="system-ui"] {
-  --nebula-ui-font: system-ui, "Segoe UI", "Segoe UI Variable", sans-serif;
+@media (-moz-pref("nebula-ui-font", "system-ui")) {
+  :root {
+    --nebula-ui-font: system-ui, "Segoe UI", "Segoe UI Variable", sans-serif;
+  }
 }
 
-html[nebula-ui-font="segoe-ui"] {
-  --nebula-ui-font: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+@media (-moz-pref("nebula-ui-font", "segoe-ui")) {
+  :root {
+    --nebula-ui-font: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+  }
 }
 
-html[nebula-ui-font="segoe-ui-variable"] {
-  --nebula-ui-font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+@media (-moz-pref("nebula-ui-font", "segoe-ui-variable")) {
+  :root {
+    --nebula-ui-font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  }
 }
 
-html[nebula-ui-font="inter"] {
-  --nebula-ui-font: Inter, system-ui, "Segoe UI", sans-serif;
+@media (-moz-pref("nebula-ui-font", "inter")) {
+  :root {
+    --nebula-ui-font: "Inter", system-ui, "Segoe UI", sans-serif;
+  }
 }
 
-html[nebula-ui-font="comfortaa"] {
-  --nebula-ui-font: Comfortaa, system-ui, "Segoe UI", sans-serif;
+@media (-moz-pref("nebula-ui-font", "comfortaa")) {
+  :root {
+    --nebula-ui-font: "Comfortaa", system-ui, "Segoe UI", sans-serif;
+  }
 }
 
-html[nebula-ui-font="geist"] {
-  --nebula-ui-font: Geist, system-ui, "Segoe UI", sans-serif;
+@media (-moz-pref("nebula-ui-font", "geist")) {
+  :root {
+    --nebula-ui-font: "Geist", system-ui, "Segoe UI", sans-serif;
+  }
 }
 
-html[nebula-ui-font="ibm-plex-sans"] {
-  --nebula-ui-font: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+@media (-moz-pref("nebula-ui-font", "ibm-plex-sans")) {
+  :root {
+    --nebula-ui-font: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  }
 }
 
-html[nebula-ui-font="arial"] {
-  --nebula-ui-font: Arial, "Helvetica Neue", sans-serif;
+@media (-moz-pref("nebula-ui-font", "arial")) {
+  :root {
+    --nebula-ui-font: "Arial", "Helvetica Neue", sans-serif;
+  }
 }
 
-html[nebula-ui-font="cascadia-code"] {
-  --nebula-ui-font: "Cascadia Code", "Cascadia Mono", Consolas, monospace;
+@media (-moz-pref("nebula-ui-font", "cascadia-code")) {
+  :root {
+    --nebula-ui-font: "Cascadia Code", "Cascadia Mono", "Consolas", monospace;
+  }
 }
 
-html[nebula-ui-font="consolas"] {
-  --nebula-ui-font: Consolas, "Cascadia Mono", monospace;
+@media (-moz-pref("nebula-ui-font", "consolas")) {
+  :root {
+    --nebula-ui-font: "Consolas", "Cascadia Mono", monospace;
+  }
 }
 
-html[nebula-ui-font="custom"] {
-  --nebula-ui-font: var(--nebula-ui-font-custom);
+/* Optional custom family: Sine injects --nebula-ui-font-custom from the
+ * string pref. The checkbox is required so an empty field cannot wipe
+ * the preset (CSS var() fallback does not run when the var is set to ""). */
+@media (-moz-pref("nebula-ui-font-custom-enable")) {
+  :root {
+    --nebula-ui-font:
+      var(--nebula-ui-font-custom), system-ui, "Segoe UI", sans-serif;
+  }
 }
 
-html[nebula-ui-font]:not([nebula-ui-font="browser"])
+@media (not (-moz-pref("nebula-ui-font", "browser"))) {
   :is(
     #nav-bar,
     #TabsToolbar,
@@ -70,7 +100,47 @@ html[nebula-ui-font]:not([nebula-ui-font="browser"])
     #tab-notification-deck,
     tooltip,
     .browserContainer > findbar,
-    menupopup
+    menupopup,
+    #mainPopupSet *,
+    #PersonalToolbar *,
+    #tabbrowser-tabs,
+    .tabbrowser-tab,
+    .tab-label,
+    .tab-text,
+    .toolbarbutton-text,
+    #zen-tabs-wrapper,
+    #navigator-toolbox *:not(.zen-toolbar-background, #zen-toolbar-background)
   ) {
-  font-family: var(--nebula-ui-font) !important;
+    font-family: var(--nebula-ui-font) !important;
+  }
+}
+
+@media (-moz-pref("nebula-ui-font-custom-enable")) {
+  :is(
+    #nav-bar,
+    #TabsToolbar,
+    #PersonalToolbar,
+    #urlbar,
+    #sidebar-box,
+    #zen-essentials-container,
+    #zen-workspaces-button,
+    #customization-container,
+    #customization-uidensity-menu,
+    #unified-extensions-panel,
+    #tab-notification-deck,
+    tooltip,
+    .browserContainer > findbar,
+    menupopup,
+    #mainPopupSet *,
+    #PersonalToolbar *,
+    #tabbrowser-tabs,
+    .tabbrowser-tab,
+    .tab-label,
+    .tab-text,
+    .toolbarbutton-text,
+    #zen-tabs-wrapper,
+    #navigator-toolbox *:not(.zen-toolbar-background, #zen-toolbar-background)
+  ) {
+    font-family: var(--nebula-ui-font) !important;
+  }
 }

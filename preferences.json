@@ -192,9 +192,15 @@
     ]
   },
   {
+    "type": "checkbox",
+    "property": "nebula-ui-font-custom-enable",
+    "label": "Use a *custom* UI font (must already be installed on the system)",
+    "defaultValue": false
+  },
+  {
     "type": "string",
-    "property": "var-nebula-ui-font-custom",
-    "label": "Custom UI Font (optional, click away to apply)",
+    "property": "nebula-ui-font-custom",
+    "label": "Custom UI font family (~enable the checkbox above; click away to apply; e.g. `Cascadia Code`~)",
     "placeholder": "e.g. Cascadia Code"
   },
 
