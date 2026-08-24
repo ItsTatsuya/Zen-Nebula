@@ -72,14 +72,18 @@ html[nebula-collapsed-toolbar] {
  * blur matches the rest of the theme (and works even if acrylic was off at parse).
  */
 html[nebula-compact-mode] #titlebar > .zen-toolbar-background,
-html[nebula-compact-mode] #titlebar > .zen-browser-generic-background {
+html[nebula-compact-mode] #titlebar > .zen-browser-generic-background,
+:root[zen-compact-mode="true"] #titlebar > .zen-toolbar-background,
+:root[zen-compact-mode="true"] #titlebar > .zen-browser-generic-background {
   background: transparent !important;
   background-color: transparent !important;
   border-radius: var(--nebula-border-radius, 13px) !important;
   box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
-  backdrop-filter: var(--nebula-glass) !important;
-  -webkit-backdrop-filter: var(--nebula-glass) !important;
-  /* Let the filter sample layers outside this isolated box after Zen's contain:content */
+  backdrop-filter: var(--nebula-glass, blur(32px) saturate(140%)) !important;
+  -webkit-backdrop-filter: var(
+    --nebula-glass,
+    blur(32px) saturate(140%)
+  ) !important;
   isolation: auto !important;
   contain: none !important;
 }
@@ -88,7 +92,15 @@ html[nebula-compact-mode] #titlebar > .zen-browser-generic-background {
 html[nebula-compact-mode] #titlebar > .zen-toolbar-background::before,
 html[nebula-compact-mode] #titlebar > .zen-toolbar-background::after,
 html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::before,
-html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::after {
+html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::after,
+:root[zen-compact-mode="true"] #titlebar > .zen-toolbar-background::before,
+:root[zen-compact-mode="true"] #titlebar > .zen-toolbar-background::after,
+:root[zen-compact-mode="true"]
+  #titlebar
+  > .zen-browser-generic-background::before,
+:root[zen-compact-mode="true"]
+  #titlebar
+  > .zen-browser-generic-background::after {
   outline: none !important;
   background: var(--nebula-color-glass) !important;
   background-color: var(--nebula-color-glass) !important;

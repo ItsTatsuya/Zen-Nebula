@@ -84,8 +84,4 @@ without searching through the code directly */
   --nebula-color-hover: light-dark(rgb(255 255 255 / 35%), rgb(0 0 0 / 45%));
   --nebula-color-selected: light-dark(rgb(255 255 255 / 45%), rgb(0 0 0 / 55%));
   --nebula-color-shadow: light-dark(rgb(255 255 255 / 5.5%), rgb(0 0 0 / 55%));
-
-  /* 🔤 Typography */
-  --nebula-ui-font: "Poppins";
-  --nebula-ui-font-weight: 400;
 }

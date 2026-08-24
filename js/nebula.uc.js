@@ -271,6 +271,8 @@
             prefs.setCharPref(name, value);
           }
         }
+
+        this._migrateUiFontPref(prefs);
       } catch (err) {
         Nebula.logger.warn(
           `⚠️ [Polyfill] Could not apply runtime prefs: ${err}`,
@@ -278,46 +280,85 @@
       }
     }
 
-    _quoteFont(name) {
-      const value = String(name || "").trim();
-      if (
-        !value ||
-        value === "inherit" ||
-        value === "system-ui" ||
-        value === "sans-serif" ||
-        value === "serif" ||
-        value === "monospace" ||
-        /^["'].*["']$/.test(value)
-      ) {
-        return value;
+    _migrateUiFontPref(prefs) {
+      const name = "nebula-ui-font";
+      const type = prefs.getPrefType(name);
+      if (type === prefs.PREF_INT || type === 64) {
+        const map = [
+          "browser",
+          "system-ui",
+          "segoe-ui",
+          "inter",
+          "comfortaa",
+          "geist",
+          "ibm-plex-sans",
+          "arial",
+          "browser",
+        ];
+        const id = prefs.getIntPref(name, 0);
+        prefs.clearUserPref(name);
+        prefs.setStringPref(name, map[id] || "browser");
+        return;
       }
-      if (/\s/.test(value)) return `"${value.replaceAll('"', "")}"`;
-      return value;
+      if (type === prefs.PREF_STRING || type === 32) {
+        const current = prefs.getStringPref(name, "browser");
+        if (current === "inherit" || current === "poppins") {
+          prefs.setStringPref(name, "browser");
+        }
+      }
+    }
+
+    _quoteFontFamily(name) {
+      const value = String(name || "").trim();
+      if (!value) return "";
+      const family = value.replaceAll('"', "");
+      if (
+        family === "system-ui" ||
+        family === "sans-serif" ||
+        family === "serif" ||
+        family === "monospace" ||
+        family === "ui-sans-serif" ||
+        family === "inherit"
+      ) {
+        return family;
+      }
+      return `"${family}", system-ui, "Segoe UI", sans-serif`;
     }
 
     applyUiFont() {
       try {
         const prefs = this._services().prefs;
+        this._migrateUiFontPref(prefs);
         const custom = prefs
           .getCharPref("var-nebula-ui-font-custom", "")
           .trim();
-        const preset = [
-          "Poppins",
-          "system-ui",
-          "Segoe UI",
-          "Inter",
-          "Comfortaa",
-          "Geist",
-          "IBM Plex Sans",
-          "Arial",
-          "inherit",
-        ][prefs.getIntPref("nebula-ui-font", 0)];
-        const font =
-          this._quoteFont(custom || preset || "Poppins") || "Poppins";
-        this.root.style.setProperty("--nebula-ui-font", font, "important");
-        this.root.style.setProperty("--fontfamily-ui", font, "important");
+        let preset = "browser";
+        if (prefs.getPrefType("nebula-ui-font") > 0) {
+          preset = String(prefs.getStringPref("nebula-ui-font", "browser"));
+        }
+
+        this.root.style.removeProperty("--nebula-ui-font");
+        this.root.style.removeProperty("--nebula-ui-font-custom");
+        this.root.style.removeProperty("--fontfamily-ui");
+
+        if (custom) {
+          this.root.setAttribute("nebula-ui-font", "custom");
+          this.root.style.setProperty(
+            "--nebula-ui-font-custom",
+            this._quoteFontFamily(custom),
+          );
+          return;
+        }
+
+        if (!preset || preset === "browser" || preset === "inherit") {
+          this.root.removeAttribute("nebula-ui-font");
+          return;
+        }
+
+        this.root.setAttribute("nebula-ui-font", preset);
       } catch (err) {
-        this.root.style.setProperty("--nebula-ui-font", "Poppins", "important");
+        this.root.removeAttribute("nebula-ui-font");
+        this.root.style.removeProperty("--nebula-ui-font");
         Nebula.logger.warn(`⚠️ [Polyfill] Could not apply UI font: ${err}`);
       }
     }
@@ -500,9 +541,10 @@
         this._fontPrefObserver = null;
       }
 
+      this.root.removeAttribute("nebula-ui-font");
       this.root.style.removeProperty("--nebula-ui-font");
+      this.root.style.removeProperty("--nebula-ui-font-custom");
       this.root.style.removeProperty("--fontfamily-ui");
-      this.root.style.removeProperty("--nebula-ui-font-weight");
 
       if (window.gBrowser) {
         gBrowser.tabContainer.removeEventListener(

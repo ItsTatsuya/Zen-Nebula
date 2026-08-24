@@ -173,27 +173,29 @@
   {
     "type": "dropdown",
     "property": "nebula-ui-font",
-    "label": "UI Font (must be installed)",
-    "value": "number",
-    "defaultValue": 0,
+    "label": "UI Font",
+    "defaultValue": "browser",
     "placeholder": false,
     "options": [
-      { "label": "Poppins (Default)", "value": 0 },
-      { "label": "System UI", "value": 1 },
-      { "label": "Segoe UI", "value": 2 },
-      { "label": "Inter", "value": 3 },
-      { "label": "Comfortaa", "value": 4 },
-      { "label": "Geist", "value": 5 },
-      { "label": "IBM Plex Sans", "value": 6 },
-      { "label": "Arial", "value": 7 },
-      { "label": "Browser default", "value": 8 }
+      { "label": "Browser default", "value": "browser" },
+      { "label": "Poppins", "value": "poppins" },
+      { "label": "System UI", "value": "system-ui" },
+      { "label": "Segoe UI", "value": "segoe-ui" },
+      { "label": "Segoe UI Variable", "value": "segoe-ui-variable" },
+      { "label": "Inter", "value": "inter" },
+      { "label": "Comfortaa", "value": "comfortaa" },
+      { "label": "Geist", "value": "geist" },
+      { "label": "IBM Plex Sans", "value": "ibm-plex-sans" },
+      { "label": "Arial", "value": "arial" },
+      { "label": "Cascadia Code", "value": "cascadia-code" },
+      { "label": "Consolas", "value": "consolas" }
     ]
   },
   {
     "type": "string",
     "property": "var-nebula-ui-font-custom",
-    "label": "Custom UI Font (overrides the menu if set)",
-    "placeholder": "e.g. Cascadia Code"
+    "label": "Custom UI Font (optional, overrides the menu)",
+    "placeholder": "Leave empty to use the menu"
   },
 
   {
