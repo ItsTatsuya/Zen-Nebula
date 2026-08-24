@@ -4,52 +4,64 @@ by changing the variables or adding preferences in about:config
 without searching through the code directly */
 
 :root {
-  /* ✨ Glass & Blur */
-  --nebula-glass: blur(var(--var-nebula-glass-blur))
-    saturate(var(--var-nebula-glass-saturation)) !important;
+  /* ✨ Glass & Blur
+   * Fallbacks are required: Sine does not write preference defaultValues on
+   * install, so --var-nebula-* is unset until settings are opened. Without
+   * fallbacks these !important tokens become invalid and Zen's opaque
+   * backgrounds win (fresh fork install has no transparency). */
+  --nebula-glass: blur(var(--var-nebula-glass-blur, 32px))
+    saturate(var(--var-nebula-glass-saturation, 140%)) !important;
   --nebula-color-glass: light-dark(
-    var(--var-nebula-color-glass-light),
-    var(--var-nebula-color-glass-dark)
+    var(--var-nebula-color-glass-light, rgb(255 255 255 / 40%)),
+    var(--var-nebula-color-glass-dark, rgb(0 0 0 / 40%))
   ) !important;
 
   /* 🖼️ Layout */
-  --nebula-border-radius: var(--var-nebula-border-radius) !important;
-  --nebula-essentials-width: var(--var-nebula-essentials-width) !important;
+  --nebula-border-radius: var(--var-nebula-border-radius, 13px) !important;
+  --nebula-essentials-width: var(
+    --var-nebula-essentials-width,
+    60px
+  ) !important;
   --nebula-workspace-grayscale: var(
-    --var-nebula-workspace-grayscale
+    --var-nebula-workspace-grayscale,
+    100%
   ) !important;
 
   /* 🎨 UI & Website Tint */
   --nebula-ui-tint: light-dark(
-    var(--var-nebula-ui-tint-light),
-    var(--var-nebula-ui-tint-dark)
+    var(--var-nebula-ui-tint-light, rgb(255 255 255 / 20%)),
+    var(--var-nebula-ui-tint-dark, rgb(0 0 0 / 20%))
   ) !important;
   --nebula-website-tint: light-dark(
-    var(--var-nebula-website-tint-light),
-    var(--var-nebula-website-tint-dark)
+    var(--var-nebula-website-tint-light, rgb(255 255 255 / 0%)),
+    var(--var-nebula-website-tint-dark, rgb(0 0 0 / 0%))
   ) !important;
 
   /* 🔮 Colors */
   --nebula-color-min: light-dark(
-    var(--var-nebula-tabs-minimum-light),
-    var(--var-nebula-tabs-minimum-dark)
+    var(--var-nebula-tabs-minimum-light, rgb(255 255 255 / 10%)),
+    var(--var-nebula-tabs-minimum-dark, rgb(0 0 0 / 20%))
   ) !important;
   --nebula-color: light-dark(
-    var(--var-nebula-tabs-default-light),
-    var(--var-nebula-tabs-default-dark)
+    var(--var-nebula-tabs-default-light, rgb(255 255 255 / 25%)),
+    var(--var-nebula-tabs-default-dark, rgb(0 0 0 / 35%))
   ) !important;
   --nebula-color-hover: light-dark(
-    var(--var-nebula-tabs-hover-light),
-    var(--var-nebula-tabs-hover-dark)
+    var(--var-nebula-tabs-hover-light, rgb(255 255 255 / 35%)),
+    var(--var-nebula-tabs-hover-dark, rgb(0 0 0 / 45%))
   ) !important;
   --nebula-color-selected: light-dark(
-    var(--var-nebula-tabs-selected-light),
-    var(--var-nebula-tabs-selected-dark)
+    var(--var-nebula-tabs-selected-light, rgb(255 255 255 / 45%)),
+    var(--var-nebula-tabs-selected-dark, rgb(0 0 0 / 55%))
   ) !important;
   --nebula-color-shadow: light-dark(
-    var(--var-nebula-color-shadow-light),
-    var(--var-nebula-color-shadow-dark)
+    var(--var-nebula-color-shadow-light, rgb(255 255 255 / 5.5%)),
+    var(--var-nebula-color-shadow-dark, rgb(0 0 0 / 55%))
   ) !important;
+
+  /* 🔤 Typography — font must be installed on the system */
+  --nebula-ui-font: var(--var-nebula-ui-font, "Poppins") !important;
+  --nebula-ui-font-weight: var(--var-nebula-ui-font-weight, 400) !important;
 }
 
 /* DO NOT ADD OTHER CSS BELOW */
@@ -76,4 +88,8 @@ without searching through the code directly */
   --nebula-color-hover: light-dark(rgb(255 255 255 / 35%), rgb(0 0 0 / 45%));
   --nebula-color-selected: light-dark(rgb(255 255 255 / 45%), rgb(0 0 0 / 55%));
   --nebula-color-shadow: light-dark(rgb(255 255 255 / 5.5%), rgb(0 0 0 / 55%));
+
+  /* 🔤 Typography */
+  --nebula-ui-font: "Poppins";
+  --nebula-ui-font-weight: 400;
 }

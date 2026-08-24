@@ -1,5 +1,6 @@
 /* modules import */
 @import url("modules/general-ui.css");
+@import url("modules/ui-font.css");
 @import url("modules/sidebar.css");
 @import url("modules/topbar-buttons.css");
 @import url("modules/urlbar.css");

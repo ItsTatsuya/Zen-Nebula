@@ -53,7 +53,7 @@ as they use the correct format.
   --glass-shadow-opacity: 65%;
 
   /* Custom fonts experiment (must be an installed font) */
-  --custom-font: "Poppins";
+  --custom-font: var(--var-nebula-ui-font, "Poppins");
 
   /* pdf.js */
   --pdfjs-topbar-max-width: 750px; /* use calc(100% - 10px) for max width */

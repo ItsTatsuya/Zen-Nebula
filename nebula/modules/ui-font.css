@@ -1,0 +1,23 @@
+/* ------------------------- UI FONT ------------------------- */
+
+:root {
+  --nebula-ui-font: var(--var-nebula-ui-font, "Poppins");
+  --nebula-ui-font-weight: var(--var-nebula-ui-font-weight, 400);
+  --fontfamily-ui: var(--nebula-ui-font);
+  --fontfamily-weight: var(--nebula-ui-font-weight);
+}
+
+#customization-container,
+#customization-uidensity-menu,
+#unified-extensions-panel,
+#nav-bar,
+#navigator-toolbox,
+#sidebar-box,
+#PersonalToolbar *,
+#mainPopupSet *,
+#tab-notification-deck,
+tooltip,
+.browserContainer > findbar {
+  font-family: var(--nebula-ui-font) !important;
+  font-weight: var(--nebula-ui-font-weight) !important;
+}

@@ -164,7 +164,26 @@
       // #navigator-toolbox was nested inside #browser. Zen's acrylic-elements
       // pref re-enables the compositor layering needed for compact sidebar blur
       // (see zen-browser/desktop acrylic CSS + Nebula issue #340 / #344).
-      this.ensureAcrylicBlur();
+      this.ensureRuntimePrefs();
+      this.applyUiFont();
+      this._fontPrefObserver = {
+        observe: () => this.applyUiFont(),
+      };
+      try {
+        const ServicesRef = this._services();
+        ServicesRef.prefs.addObserver(
+          "var-nebula-ui-font",
+          this._fontPrefObserver,
+        );
+        ServicesRef.prefs.addObserver(
+          "var-nebula-ui-font-custom",
+          this._fontPrefObserver,
+        );
+        ServicesRef.prefs.addObserver(
+          "var-nebula-ui-font-weight",
+          this._fontPrefObserver,
+        );
+      } catch {}
 
       // Compact mode detection
       this.compactObserver = Nebula.observePresence(
@@ -193,30 +212,84 @@
       Nebula.logger.log("✅ [Polyfill] Detection active.");
     }
 
+    _services() {
+      return (
+        globalThis.Services ||
+        ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs")
+          .Services
+      );
+    }
+
     /**
-     * Ensure compact-mode glass can blur page content.
-     * Release builds default zen.theme.acrylic-elements to false (Twilight-only),
-     * which leaves the floating sidebar translucent with no blur.
+     * Prefs Nebula needs on a fresh Sine install.
+     * Sine finds preferences.json but does not apply defaultValues until the
+     * settings UI is parsed, so a first-time fork install otherwise keeps
+     * Zen's opaque overlays (installing upstream Nebula first "fixes" this
+     * only because those prefs then persist).
      */
-    ensureAcrylicBlur() {
-      const PREF = "zen.theme.acrylic-elements";
+    ensureRuntimePrefs() {
       try {
-        const ServicesRef =
-          globalThis.Services ||
-          ChromeUtils.importESModule(
-            "resource://gre/modules/Services.sys.mjs",
-          ).Services;
-        const prefs = ServicesRef.prefs;
-        if (!prefs.getBoolPref(PREF, false)) {
-          prefs.setBoolPref(PREF, true);
+        const prefs = this._services().prefs;
+
+        const acrylicPref = "zen.theme.acrylic-elements";
+        if (!prefs.getBoolPref(acrylicPref, false)) {
+          prefs.setBoolPref(acrylicPref, true);
           Nebula.logger.log(
-            `🔧 [Polyfill] Enabled ${PREF} for compact sidebar blur (Zen 1.19.9b+ compositor fix).`,
+            `🔧 [Polyfill] Enabled ${acrylicPref} for compact sidebar blur (Zen 1.19.9b+ compositor fix).`,
+          );
+        }
+
+        const transparentPref = "browser.tabs.allow_transparent_browser";
+        if (!prefs.prefHasUserValue(transparentPref)) {
+          prefs.setBoolPref(transparentPref, true);
+          Nebula.logger.log(
+            `🔧 [Polyfill] Enabled ${transparentPref} so web content can composite with chrome glass.`,
           );
         }
       } catch (err) {
         Nebula.logger.warn(
-          `⚠️ [Polyfill] Could not enable ${PREF}: ${err}`,
+          `⚠️ [Polyfill] Could not apply runtime prefs: ${err}`,
         );
+      }
+    }
+
+    _quoteFont(name) {
+      const value = String(name || "").trim();
+      if (
+        !value ||
+        value === "inherit" ||
+        value === "system-ui" ||
+        value === "sans-serif" ||
+        value === "serif" ||
+        value === "monospace" ||
+        /^["'].*["']$/.test(value)
+      ) {
+        return value;
+      }
+      if (/\s/.test(value)) return `"${value.replaceAll('"', "")}"`;
+      return value;
+    }
+
+    applyUiFont() {
+      try {
+        const prefs = this._services().prefs;
+        const custom = prefs
+          .getCharPref("var-nebula-ui-font-custom", "")
+          .trim();
+        const preset = prefs.getCharPref("var-nebula-ui-font", "Poppins");
+        const weight = prefs.getCharPref("var-nebula-ui-font-weight", "400");
+        const font =
+          this._quoteFont(custom || preset || "Poppins") || "Poppins";
+        this.root.style.setProperty("--nebula-ui-font", font, "important");
+        this.root.style.setProperty("--fontfamily-ui", font, "important");
+        this.root.style.setProperty(
+          "--nebula-ui-font-weight",
+          weight || "400",
+          "important",
+        );
+      } catch (err) {
+        this.root.style.setProperty("--nebula-ui-font", "Poppins", "important");
+        Nebula.logger.warn(`⚠️ [Polyfill] Could not apply UI font: ${err}`);
       }
     }
 
@@ -386,6 +459,26 @@
       this.compactObserver?.disconnect();
       this.modeObserver?.disconnect();
 
+      if (this._fontPrefObserver) {
+        try {
+          const prefs = this._services().prefs;
+          prefs.removeObserver("var-nebula-ui-font", this._fontPrefObserver);
+          prefs.removeObserver(
+            "var-nebula-ui-font-custom",
+            this._fontPrefObserver,
+          );
+          prefs.removeObserver(
+            "var-nebula-ui-font-weight",
+            this._fontPrefObserver,
+          );
+        } catch {}
+        this._fontPrefObserver = null;
+      }
+
+      this.root.style.removeProperty("--nebula-ui-font");
+      this.root.style.removeProperty("--fontfamily-ui");
+      this.root.style.removeProperty("--nebula-ui-font-weight");
+
       if (window.gBrowser) {
         gBrowser.tabContainer.removeEventListener(
           "TabSelect",
@@ -451,10 +544,12 @@
     sync() {
       if (!this.gradientSlider) return;
       const val = +this.gradientSlider.value;
+      const isZero = val === 0;
       this.root.style.setProperty(
         "--nebula-gradient-opacity",
-        val === 0 ? "0" : null,
+        isZero ? "0" : null,
       );
+      this.root.toggleAttribute("nebula-zen-gradient-contrast-zero", isZero);
       Nebula.logger.debug?.(`[GradientSlider] Sync → ${val}`);
     }
 
@@ -519,6 +614,7 @@
       }
 
       this.root.style.removeProperty("--nebula-gradient-opacity");
+      this.root.removeAttribute("nebula-zen-gradient-contrast-zero");
       Nebula.logger.log("🧹 [GradientSlider] Destroyed");
     }
   }

@@ -2,12 +2,17 @@
 
 /* Main UI tint */
 #zen-main-app-wrapper {
-  background: var(--nebula-ui-tint) !important;
+  background: var(--nebula-ui-tint, transparent) !important;
 }
 
-/* Website background tint */
+/*
+ * Website background tint.
+ * Zen paints browser[transparent="true"] at 60%/10% white unless this
+ * override wins. Fall back to fully transparent so a fresh install does
+ * not keep Zen's opaque overlay when Sine prefs have not been written.
+ */
 browser[transparent="true"] {
-  background: var(--nebula-website-tint) !important;
+  background: var(--nebula-website-tint, transparent) !important;
 }
 
 /* Hide identity label for Bonjourr */

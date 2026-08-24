@@ -165,6 +165,36 @@
     "property": "zen.view.experimental-force-window-controls-left",
     "label": "Force window controls to left side (Restart)"
   },
+  {
+    "type": "separator",
+    "label": "🔤 Typography",
+    "margin": "15px 0 15px 0"
+  },
+  {
+    "type": "dropdown",
+    "property": "var-nebula-ui-font",
+    "label": "UI Font (must be installed)",
+    "defaultValue": "Poppins",
+    "placeholder": false,
+    "processAs": "var",
+    "options": [
+      { "label": "Poppins (Default)", "value": "Poppins" },
+      { "label": "System UI", "value": "system-ui" },
+      { "label": "Segoe UI", "value": "\"Segoe UI\"" },
+      { "label": "Inter", "value": "Inter" },
+      { "label": "Comfortaa", "value": "Comfortaa" },
+      { "label": "Geist", "value": "Geist" },
+      { "label": "IBM Plex Sans", "value": "\"IBM Plex Sans\"" },
+      { "label": "Arial", "value": "Arial" },
+      { "label": "Browser default", "value": "inherit" }
+    ]
+  },
+  {
+    "type": "string",
+    "property": "var-nebula-ui-font-custom",
+    "label": "Custom UI Font (overrides the menu if set)",
+    "placeholder": "e.g. Cascadia Code"
+  },
 
   {
     "type": "separator",

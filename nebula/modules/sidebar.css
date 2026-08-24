@@ -95,10 +95,13 @@ html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::after {
   border-radius: inherit !important;
 }
 
-/* Keep non-compact Zen toolbar outline disabled where Nebula still touches it */
+/* Frosted toolbar overlay (non-compact). Original Nebula hardcoded this
+ * 40% glass; the blur-fix dropped it, so expanded sidebar looked opaque
+ * until Sine prefs existed. Compact-mode rules above are more specific. */
 .zen-toolbar-background::before,
 .zen-toolbar-background::after {
   outline: none !important;
+  background-color: var(--nebula-color-glass) !important;
 }
 
 :root[zen-right-side="true"][nebula-compact-mode] #titlebar {
