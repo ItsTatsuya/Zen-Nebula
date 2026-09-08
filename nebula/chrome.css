@@ -17,3 +17,6 @@
 
 /* config import */
 @import url("config.css");
+
+/* Keep accessibility overrides after every optional animation module. */
+@import url("modules/reduced-motion.css");

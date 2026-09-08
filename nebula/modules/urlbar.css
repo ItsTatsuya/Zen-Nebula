@@ -202,6 +202,19 @@
     transition: none !important;
   }
 
+  #urlbar[open],
+  #urlbar .urlbar-background,
+  #urlbar-results .urlbarView-row,
+  #urlbar[open] #urlbar-results > *::before {
+    animation: none !important;
+    transition: none !important;
+  }
+
+  #urlbar-results .urlbarView-row {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
   #browser:has(#urlbar[open]) .browserStack {
     filter: none !important;
     opacity: 1 !important;

@@ -195,6 +195,27 @@ browser[transparent="true"] {
   backface-visibility: hidden;
 }
 
+/* Keep the theme usable for people who request reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* URL-bar rows start hidden for their entrance animation. Reveal them when
+   * the animation is shortened/disabled by the reduced-motion preference. */
+  #urlbar-results .urlbarView-row {
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
 /* ------------------ Ctrl Tab Styling ------------------- */
 
 #nebula-ctrltab-background-below {

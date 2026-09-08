@@ -1,0 +1,66 @@
+/* ---------------------- REDUCED MOTION ---------------------- */
+
+/* This file is imported last so it can override the theme's optional
+ * animation rules, including rules that use !important. */
+@media (prefers-reduced-motion: reduce) {
+  :root:is(#main-window, *),
+  :root:is(#main-window, *) :is(*, #nebula-reduced-motion),
+  :root:is(#main-window, *) :is(*, #nebula-reduced-motion)::before,
+  :root:is(#main-window, *) :is(*, #nebula-reduced-motion)::after {
+    animation: none !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    animation-play-state: paused !important;
+    transition: none !important;
+    transition-delay: 0s !important;
+    scroll-behavior: auto !important;
+    will-change: auto !important;
+  }
+
+  /* Several entrance animations start at opacity: 0. Reveal their content
+   * when the animation is disabled instead of leaving it permanently hidden. */
+  :root:is(#main-window, *) #urlbar-results .urlbarView-row,
+  :root:is(#main-window, *) #urlbar-results .urlbarView-row::before,
+  :root:is(#main-window, *) #urlbar-results .urlbarView-row::after {
+    opacity: 1 !important;
+    transform: none !important;
+    scale: 1 !important;
+    filter: none !important;
+  }
+
+  /* The URL-bar backdrop and website dimming have their own transform and
+   * filter declarations outside the animation shorthand. */
+  :root:is(#main-window, *) #urlbar[open] .urlbar-background {
+    scale: 1 !important;
+  }
+
+  :root:is(#main-window, *) #browser:has(#urlbar[open]) .browserStack {
+    filter: none !important;
+    opacity: 1 !important;
+    scale: 1 !important;
+    transform: none !important;
+  }
+
+  /* Reset visual states left by tab loading, tab switching, split-view and
+   * glance animations. Keep the tab deck's existing visibility handling. */
+  :root:is(#main-window, *)
+    :is(.browserSidebarContainer, #nebula-reduced-motion) {
+    animation: none !important;
+    filter: none !important;
+    transform: none !important;
+  }
+
+  :root:is(#main-window, *) #tabbrowser-tabpanels > hbox {
+    filter: none !important;
+    scale: 1 !important;
+    transform: none !important;
+  }
+
+  :root:is(#main-window, *)
+    #tabbrowser-tabpanels[zen-split-view="true"]
+    .browserSidebarContainer {
+    filter: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}

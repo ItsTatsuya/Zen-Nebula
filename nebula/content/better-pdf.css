@@ -1,12 +1,12 @@
 /* ------------ BETTER PDF VIEWER ----------- */
-:root {
+html[mozdisallowselectionprint] {
   --pdf-js-pseudobg-bg: #dedede;
   @media (prefers-color-scheme: dark) {
     --pdf-js-pseudobg-bg: #2e2e2e;
   }
 }
 
-#mainContainer::before {
+html[mozdisallowselectionprint] #mainContainer::before {
   content: "" !important;
   position: absolute !important;
   background: var(--pdf-js-pseudobg-bg) !important;
@@ -25,7 +25,7 @@
   z-index: -10000 !important;
 }
 
-.sidebarOpen::before {
+html[mozdisallowselectionprint] .sidebarOpen::before {
   content: "";
   background: var(--pdf-js-pseudobg-bg) !important;
   position: absolute !important;
@@ -43,7 +43,8 @@ Feel free to change these values to whatever you want, as long
 as they use the correct format.
 */
 
-* {
+html[mozdisallowselectionprint],
+html[mozdisallowselectionprint] * {
   /* Accent color */
   --natsumi-pages-accent-color: #101010;
 
@@ -69,7 +70,8 @@ The below code applies your config (or default values if needed) and they should
 Edit the natsumi-config.css file instead.
  */
 
-* {
+html[mozdisallowselectionprint],
+html[mozdisallowselectionprint] * {
   /* Colors */
   --natsumi-primary-color: var(--natsumi-pages-accent-color, #aac7ff);
   --natsumi-colors-primary: color-mix(
@@ -710,10 +712,11 @@ html[mozdisallowselectionprint] {
   }
 }
 
-/* global */
-/* ==== Global tweaks ==== */
+/* PDF selection */
+/* ==== PDF viewer tweaks ==== */
 
-* {
+html[mozdisallowselectionprint],
+html[mozdisallowselectionprint] * {
   @media (-moz-pref("natsumi.global.highlight-accent-color")) {
     &::selection,
     &::selection {
@@ -727,5 +730,30 @@ html[mozdisallowselectionprint] {
         ) !important;
       }
     }
+  }
+}
+
+/* PDF-only reduced-motion override. The content stylesheet is imported for
+ * every page, so keep this guard tied to the PDF viewer root. */
+@media (prefers-reduced-motion: reduce) {
+  html[mozdisallowselectionprint]:has(
+      head link:nth-of-type(1)[href^="resource://pdf.js"]
+    ),
+  html[mozdisallowselectionprint]:has(
+      head link:nth-of-type(1)[href^="resource://pdf.js"]
+    )
+    *,
+  html[mozdisallowselectionprint]:has(
+      head link:nth-of-type(1)[href^="resource://pdf.js"]
+    )
+    *::before,
+  html[mozdisallowselectionprint]:has(
+      head link:nth-of-type(1)[href^="resource://pdf.js"]
+    )
+    *::after {
+    animation: none !important;
+    animation-delay: 0s !important;
+    transition: none !important;
+    transition-delay: 0s !important;
   }
 }

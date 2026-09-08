@@ -34,9 +34,9 @@
     },
 
     runOnLoad(callback) {
-      if (document.readyState === "complete") callback();
-      else
+      if (document.readyState === "loading")
         document.addEventListener("DOMContentLoaded", callback, { once: true });
+      else callback();
     },
 
     register(ModuleClass) {
@@ -74,21 +74,6 @@
 
     getModule(name) {
       return this._modules.find((m) => m._name === name);
-    },
-
-    observePresence(selector, attrName) {
-      const update = () => {
-        const found = !!document.querySelector(selector);
-        document.documentElement.toggleAttribute(attrName, found);
-      };
-      const observer = new MutationObserver(update);
-      observer.observe(document.documentElement, {
-        childList: true,
-        subtree: true,
-        attributes: true,
-      });
-      update();
-      return observer;
     },
 
     init() {
@@ -143,21 +128,44 @@
       this.root = document.documentElement;
       this.compactObserver = null;
       this.modeObserver = null;
+      this._faviconTimeout = null;
+      this._faviconRequest = 0;
+      this._gBrowserWaitTimer = null;
+      this._gBrowserWaitResolve = null;
+      this._prefs = null;
+      this._destroyed = false;
+      this._prefObserver = {
+        observe: (_subject, _topic, data) => {
+          if (data === "nebula-active-tab-glow") this.updateFaviconColor();
+        },
+      };
 
       this.updateFaviconColor = this.updateFaviconColor.bind(this);
     }
 
     async init() {
+      this._destroyed = false;
+
       // Wait until gBrowser is available
-      if (!window.gBrowser) {
-        await new Promise((resolve) => {
-          const check = setInterval(() => {
-            if (window.gBrowser?.tabContainer) {
-              clearInterval(check);
-              resolve();
+      if (!window.gBrowser?.tabContainer) {
+        const ready = await new Promise((resolve) => {
+          this._gBrowserWaitResolve = resolve;
+          const check = () => {
+            if (this._destroyed) {
+              this._gBrowserWaitTimer = null;
+              this._gBrowserWaitResolve = null;
+              resolve(false);
+            } else if (window.gBrowser?.tabContainer) {
+              this._gBrowserWaitTimer = null;
+              this._gBrowserWaitResolve = null;
+              resolve(true);
+            } else {
+              this._gBrowserWaitTimer = setTimeout(check, 50);
             }
-          }, 50);
+          };
+          check();
         });
+        if (!ready || this._destroyed) return;
       }
 
       // Zen 1.19.9b+ broke chrome backdrop-filter sampling of web content after
@@ -166,18 +174,43 @@
       // (see zen-browser/desktop acrylic CSS + Nebula issue #340 / #344).
       this.ensureRuntimePrefs();
 
-      // Compact mode detection
-      this.compactObserver = Nebula.observePresence(
-        '[zen-compact-mode="true"]',
-        "nebula-compact-mode",
-      );
+      // Compact mode is a root attribute. Observe only that attribute instead
+      // of querying the whole browser for every DOM mutation.
+      const updateCompactMode = () => {
+        this.root.toggleAttribute(
+          "nebula-compact-mode",
+          this.root.getAttribute("zen-compact-mode") === "true",
+        );
+      };
+      this.compactObserver = new MutationObserver(updateCompactMode);
+      this.compactObserver.observe(this.root, {
+        attributes: true,
+        attributeFilter: ["zen-compact-mode"],
+      });
+      updateCompactMode();
 
       // Toolbar mode detection
       this.modeObserver = new MutationObserver(() => this.updateToolbarModes());
-      this.modeObserver.observe(this.root, { attributes: true });
+      this.modeObserver.observe(this.root, {
+        attributes: true,
+        attributeFilter: ["zen-sidebar-expanded", "zen-single-toolbar"],
+      });
       this.updateToolbarModes();
 
       // Favicon color detection
+      try {
+        this._prefs = this._services().prefs;
+        this._prefs.addObserver(
+          "nebula-active-tab-glow",
+          this._prefObserver,
+          false,
+        );
+      } catch (err) {
+        Nebula.logger.warn(
+          `⚠️ [Polyfill] Could not observe favicon glow preference: ${err}`,
+        );
+      }
+
       gBrowser.tabContainer.addEventListener(
         "TabSelect",
         this.updateFaviconColor,
@@ -332,16 +365,42 @@
     }
 
     async updateFaviconColor(e) {
-      if (e?.type === "TabAttrModified" && !e.detail.changed.includes("image"))
+      if (this._destroyed) return;
+
+      if (
+        e?.type === "TabAttrModified" &&
+        !e.detail?.changed?.includes("image")
+      )
         return;
+
+      // The favicon is only needed for the icon-color active-tab glow.
+      let activeTabGlow = 0;
+      try {
+        activeTabGlow = (this._prefs || this._services().prefs).getIntPref(
+          "nebula-active-tab-glow",
+          0,
+        );
+      } catch {}
+      if (activeTabGlow !== 2) {
+        this._faviconRequest++;
+        if (this._faviconTimeout) clearTimeout(this._faviconTimeout);
+        this.root.style.removeProperty("--nebula-selected-favicon-color");
+        return;
+      }
 
       const tab = gBrowser.selectedTab;
       const iconUrl = tab?.getAttribute("image");
-      if (!iconUrl) return;
-
-      // Debounce: delay update by 10ms
+      const requestId = ++this._faviconRequest;
       if (this._faviconTimeout) clearTimeout(this._faviconTimeout);
+      if (!iconUrl) {
+        this.root.style.removeProperty("--nebula-selected-favicon-color");
+        return;
+      }
+
+      // Debounce favicon decoding while the selected tab is changing.
       this._faviconTimeout = setTimeout(async () => {
+        this._faviconTimeout = null;
+        if (this._destroyed) return;
         try {
           const img = new Image();
           img.crossOrigin = "anonymous";
@@ -350,6 +409,15 @@
             img.onload = resolve;
             img.onerror = resolve;
           });
+
+          // A tab switch or favicon update may have happened while the image
+          // was loading. Never let an old request paint a current-tab color.
+          if (
+            requestId !== this._faviconRequest ||
+            gBrowser.selectedTab !== tab ||
+            tab.getAttribute("image") !== iconUrl
+          )
+            return;
 
           const size = 16; // smaller canvas
           if (!this._faviconCanvas) {
@@ -416,11 +484,15 @@
               "--nebula-selected-favicon-color",
               finalColor,
             );
+          } else {
+            this.root.style.removeProperty("--nebula-selected-favicon-color");
           }
         } catch (err) {
+          if (requestId === this._faviconRequest)
+            this.root.style.removeProperty("--nebula-selected-favicon-color");
           console.error("[NebulaPolyfill] Favicon color error:", err);
         }
-      }, 100); // 10ms delay
+      }, 100);
     }
 
     // helper: convert HSL to RGB
@@ -479,15 +551,31 @@
     }
 
     destroy() {
+      this._destroyed = true;
       this.compactObserver?.disconnect();
       this.modeObserver?.disconnect();
+      this._gBrowserWaitResolve?.(false);
+      this._gBrowserWaitResolve = null;
+      if (this._gBrowserWaitTimer) clearTimeout(this._gBrowserWaitTimer);
+      this._gBrowserWaitTimer = null;
+      if (this._faviconTimeout) clearTimeout(this._faviconTimeout);
+      this._faviconRequest++;
+
+      try {
+        this._prefs?.removeObserver(
+          "nebula-active-tab-glow",
+          this._prefObserver,
+        );
+      } catch {}
+      this._prefs = null;
 
       this.root.removeAttribute("nebula-ui-font");
       this.root.style.removeProperty("--nebula-ui-font");
       this.root.style.removeProperty("--nebula-ui-font-custom");
       this.root.style.removeProperty("--fontfamily-ui");
+      this.root.style.removeProperty("--nebula-selected-favicon-color");
 
-      if (window.gBrowser) {
+      if (window.gBrowser?.tabContainer) {
         gBrowser.tabContainer.removeEventListener(
           "TabSelect",
           this.updateFaviconColor,
@@ -639,9 +727,10 @@
       this.animationFrameId = null;
 
       this.update = this.update.bind(this);
+      this.scheduleUpdate = this.scheduleUpdate.bind(this);
       this._compactCallback = this._compactCallback.bind(this);
       this.resizeObserver = null;
-      this.intersectionObserver = null;
+      this.rootObserver = null;
     }
 
     init() {
@@ -659,6 +748,23 @@
         display: "none",
       });
       this.browser.appendChild(this.overlay);
+
+      this.resizeObserver = new ResizeObserver(this.scheduleUpdate);
+      this.resizeObserver.observe(this.titlebar);
+      this.resizeObserver.observe(this.browser);
+      window.addEventListener("resize", this.scheduleUpdate);
+      this.titlebar.addEventListener("transitionrun", this.scheduleUpdate);
+      this.titlebar.addEventListener("transitionend", this.scheduleUpdate);
+      this.rootObserver = new MutationObserver(this.scheduleUpdate);
+      this.rootObserver.observe(this.root, {
+        attributes: true,
+        attributeFilter: [
+          "nebula-compact-mode",
+          "zen-sidebar-expanded",
+          "zen-right-side",
+          "zen-single-toolbar",
+        ],
+      });
 
       gZenCompactModeManager.addEventListener(this._compactCallback);
 
@@ -679,6 +785,14 @@
       }
     }
 
+    scheduleUpdate() {
+      if (this.animationFrameId !== null) return;
+      this.animationFrameId = requestAnimationFrame(() => {
+        this.animationFrameId = null;
+        this.update();
+      });
+    }
+
     update() {
       const isCompact = this.root.hasAttribute("nebula-compact-mode");
 
@@ -696,7 +810,6 @@
         rect.height > 5 &&
         style.display !== "none" &&
         style.visibility !== "hidden" &&
-        style.opacity !== "0" &&
         rect.bottom > 0 &&
         rect.top < window.innerHeight;
 
@@ -707,7 +820,6 @@
         rect.height !== this.lastRect.height;
 
       if (!changed && this.lastVisible === isVisible) {
-        this.animationFrameId = requestAnimationFrame(this.update);
         return;
       }
 
@@ -734,25 +846,23 @@
       } else {
         this.hideOverlay();
       }
-
-      this.animationFrameId = requestAnimationFrame(this.update);
     }
 
     hideOverlay() {
-      if (this.lastVisible) {
+      if (this.overlay) {
         this.overlay.classList.remove("visible");
         this.overlay.style.display = "none";
-        this.lastVisible = false;
       }
+      this.lastVisible = false;
     }
 
     startLiveTracking() {
       this.stopLiveTracking();
-      this.update();
+      this.scheduleUpdate();
     }
 
     stopLiveTracking() {
-      if (this.animationFrameId) {
+      if (this.animationFrameId !== null) {
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
       }
@@ -760,6 +870,11 @@
 
     destroy() {
       gZenCompactModeManager.removeEventListener(this._compactCallback);
+      window.removeEventListener("resize", this.scheduleUpdate);
+      this.titlebar?.removeEventListener("transitionrun", this.scheduleUpdate);
+      this.titlebar?.removeEventListener("transitionend", this.scheduleUpdate);
+      this.resizeObserver?.disconnect();
+      this.rootObserver?.disconnect();
       this.stopLiveTracking();
       this.hideOverlay();
       this.overlay?.remove();
@@ -780,7 +895,10 @@
       this.animationFrameId = null;
 
       this.update = this.update.bind(this);
+      this.scheduleUpdate = this.scheduleUpdate.bind(this);
       this._compactCallback = this._compactCallback.bind(this);
+      this.resizeObserver = null;
+      this.rootObserver = null;
     }
 
     init() {
@@ -799,6 +917,23 @@
       });
       this.browser.appendChild(this.overlay);
 
+      this.resizeObserver = new ResizeObserver(this.scheduleUpdate);
+      this.resizeObserver.observe(this.navbar);
+      this.resizeObserver.observe(this.browser);
+      window.addEventListener("resize", this.scheduleUpdate);
+      this.navbar.addEventListener("transitionrun", this.scheduleUpdate);
+      this.navbar.addEventListener("transitionend", this.scheduleUpdate);
+      this.rootObserver = new MutationObserver(this.scheduleUpdate);
+      this.rootObserver.observe(this.root, {
+        attributes: true,
+        attributeFilter: [
+          "nebula-compact-mode",
+          "zen-sidebar-expanded",
+          "zen-right-side",
+          "zen-single-toolbar",
+        ],
+      });
+
       gZenCompactModeManager.addEventListener(this._compactCallback);
 
       if (this.root.hasAttribute("nebula-compact-mode")) {
@@ -806,6 +941,14 @@
       }
 
       Nebula.logger.log("✅ [NavbarBackground] Tracking initialized.");
+    }
+
+    scheduleUpdate() {
+      if (this.animationFrameId !== null) return;
+      this.animationFrameId = requestAnimationFrame(() => {
+        this.animationFrameId = null;
+        this.update();
+      });
     }
 
     _compactCallback() {
@@ -834,7 +977,6 @@
         rect.height > 5 &&
         style.display !== "none" &&
         style.visibility !== "hidden" &&
-        style.opacity !== "0" &&
         rect.bottom > 0 &&
         rect.top < window.innerHeight;
 
@@ -845,7 +987,6 @@
         rect.height !== this.lastRect.height;
 
       if (!changed && this.lastVisible === isVisible) {
-        this.animationFrameId = requestAnimationFrame(this.update);
         return;
       }
 
@@ -872,25 +1013,23 @@
       } else {
         this.hideOverlay();
       }
-
-      this.animationFrameId = requestAnimationFrame(this.update);
     }
 
     hideOverlay() {
-      if (this.lastVisible) {
+      if (this.overlay) {
         this.overlay.classList.remove("visible");
         this.overlay.style.display = "none";
-        this.lastVisible = false;
       }
+      this.lastVisible = false;
     }
 
     startLiveTracking() {
       this.stopLiveTracking();
-      this.update();
+      this.scheduleUpdate();
     }
 
     stopLiveTracking() {
-      if (this.animationFrameId) {
+      if (this.animationFrameId !== null) {
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
       }
@@ -898,6 +1037,11 @@
 
     destroy() {
       gZenCompactModeManager.removeEventListener(this._compactCallback);
+      window.removeEventListener("resize", this.scheduleUpdate);
+      this.navbar?.removeEventListener("transitionrun", this.scheduleUpdate);
+      this.navbar?.removeEventListener("transitionend", this.scheduleUpdate);
+      this.resizeObserver?.disconnect();
+      this.rootObserver?.disconnect();
       this.stopLiveTracking();
       this.hideOverlay();
       this.overlay?.remove();
@@ -918,7 +1062,9 @@
       this.animationFrameId = null;
 
       this.update = this.update.bind(this);
+      this.scheduleUpdate = this.scheduleUpdate.bind(this);
       this.mutationObserver = null;
+      this.resizeObserver = null;
     }
 
     init() {
@@ -937,6 +1083,15 @@
       });
       this.browser.appendChild(this.overlay);
 
+      this.resizeObserver = new ResizeObserver(this.scheduleUpdate);
+      this.resizeObserver.observe(this.urlbar);
+      this.resizeObserver.observe(this.browser);
+      window.addEventListener("resize", this.scheduleUpdate);
+      this.urlbar.addEventListener("transitionrun", this.scheduleUpdate);
+      this.urlbar.addEventListener("transitionend", this.scheduleUpdate);
+      this.urlbar.addEventListener("animationstart", this.scheduleUpdate);
+      this.urlbar.addEventListener("animationend", this.scheduleUpdate);
+
       // Start mutation observer for `open` attribute change
       this.mutationObserver = new MutationObserver(() => this.onMutation());
       this.mutationObserver.observe(this.urlbar, {
@@ -949,6 +1104,14 @@
       }
 
       Nebula.logger.log("✅ [URLBarBackground] Tracking initialized.");
+    }
+
+    scheduleUpdate() {
+      if (this.animationFrameId !== null) return;
+      this.animationFrameId = requestAnimationFrame(() => {
+        this.animationFrameId = null;
+        this.update();
+      });
     }
 
     onMutation() {
@@ -977,7 +1140,6 @@
         rect.height > 5 &&
         style.display !== "none" &&
         style.visibility !== "hidden" &&
-        style.opacity !== "0" &&
         rect.bottom > 0 &&
         rect.top < window.innerHeight;
 
@@ -988,7 +1150,6 @@
         rect.height !== this.lastRect.height;
 
       if (!changed && this.lastVisible === isVisible) {
-        this.animationFrameId = requestAnimationFrame(this.update);
         return;
       }
 
@@ -1015,25 +1176,23 @@
       } else {
         this.hideOverlay();
       }
-
-      this.animationFrameId = requestAnimationFrame(this.update);
     }
 
     hideOverlay() {
-      if (this.lastVisible) {
+      if (this.overlay) {
         this.overlay.classList.remove("visible");
         this.overlay.style.display = "none";
-        this.lastVisible = false;
       }
+      this.lastVisible = false;
     }
 
     startLiveTracking() {
       this.stopLiveTracking();
-      this.update();
+      this.scheduleUpdate();
     }
 
     stopLiveTracking() {
-      if (this.animationFrameId) {
+      if (this.animationFrameId !== null) {
         cancelAnimationFrame(this.animationFrameId);
         this.animationFrameId = null;
       }
@@ -1041,6 +1200,12 @@
 
     destroy() {
       this.mutationObserver?.disconnect();
+      window.removeEventListener("resize", this.scheduleUpdate);
+      this.urlbar?.removeEventListener("transitionrun", this.scheduleUpdate);
+      this.urlbar?.removeEventListener("transitionend", this.scheduleUpdate);
+      this.urlbar?.removeEventListener("animationstart", this.scheduleUpdate);
+      this.urlbar?.removeEventListener("animationend", this.scheduleUpdate);
+      this.resizeObserver?.disconnect();
       this.stopLiveTracking();
       this.hideOverlay();
       this.overlay?.remove();
@@ -1057,23 +1222,29 @@
 
       this.lastArtworkUrl = null;
       this.originalSetupMediaController = null;
+      this.attachedController = null;
       this.overlay = null;
+      this._controllerWaitTimer = null;
+      this._destroyed = false;
       this._metadataChangeHandler = this._metadataChangeHandler.bind(this);
     }
 
     init() {
+      this._destroyed = false;
       this._waitForController();
     }
 
     _waitForController() {
+      if (this._destroyed) return;
       if (
         typeof window.gZenMediaController?.setupMediaController === "function"
       ) {
         this._onControllerReady();
       } else {
-        requestIdleCallback(() =>
-          setTimeout(() => this._waitForController(), 200),
-        ); // gentle polling
+        this._controllerWaitTimer = setTimeout(() => {
+          this._controllerWaitTimer = null;
+          this._waitForController();
+        }, 200);
       }
     }
 
@@ -1090,7 +1261,7 @@
         this._attachMetadataHandler(initialController);
         this._setBackgroundFromMetadata(initialController);
       } else {
-        this._manageOverlayVisibility(false);
+        this._cleanupToDefaultState();
       }
 
       Nebula.logger.log("✅ [MediaCoverArt] Hooked into MediaPlayer.");
@@ -1100,11 +1271,17 @@
       if (controller) {
         this._attachMetadataHandler(controller);
         this._setBackgroundFromMetadata(controller);
+      } else {
+        this._detachMetadataHandler();
+        this._cleanupToDefaultState();
       }
       return this.originalSetupMediaController(controller, browser);
     }
 
     _attachMetadataHandler(controller) {
+      if (!controller || controller === this.attachedController) return;
+
+      this._detachMetadataHandler();
       controller.removeEventListener(
         "metadatachange",
         this._metadataChangeHandler,
@@ -1113,10 +1290,20 @@
         "metadatachange",
         this._metadataChangeHandler,
       );
+      this.attachedController = controller;
+    }
+
+    _detachMetadataHandler() {
+      this.attachedController?.removeEventListener(
+        "metadatachange",
+        this._metadataChangeHandler,
+      );
+      this.attachedController = null;
     }
 
     _metadataChangeHandler(event) {
       const controller = event.target;
+      if (controller !== this.attachedController) return;
       if (controller && typeof controller.getMetadata === "function") {
         this._setBackgroundFromMetadata(controller);
       } else {
@@ -1139,7 +1326,7 @@
       });
 
       const coverUrl = sorted[0]?.src || null;
-      if (coverUrl === this.lastArtworkUrl) return;
+      if (coverUrl === this.lastArtworkUrl && this.overlay) return;
 
       this.lastArtworkUrl = coverUrl;
       this._ensureOverlayElement();
@@ -1189,19 +1376,20 @@
     }
 
     destroy() {
+      this._destroyed = true;
+      if (this._controllerWaitTimer) {
+        clearTimeout(this._controllerWaitTimer);
+        this._controllerWaitTimer = null;
+      }
+
       if (this.originalSetupMediaController) {
-        gZenMediaController.setupMediaController =
-          this.originalSetupMediaController;
+        if (window.gZenMediaController)
+          window.gZenMediaController.setupMediaController =
+            this.originalSetupMediaController;
         this.originalSetupMediaController = null;
       }
 
-      const current = gZenMediaController?._currentMediaController;
-      if (current) {
-        current.removeEventListener(
-          "metadatachange",
-          this._metadataChangeHandler,
-        );
-      }
+      this._detachMetadataHandler();
 
       this._cleanupToDefaultState();
 
@@ -1442,8 +1630,10 @@
       this.lastVisible = false;
       this.rafId = null;
       this.trackingMode = trackingMode;
+      this.resizeObserver = null;
 
       this.update = this.update.bind(this);
+      this.scheduleUpdate = this.scheduleUpdate.bind(this);
       this.onPopupShown = this.startTracking.bind(this);
       this.onPopupHidden = this.stopTracking.bind(this);
     }
@@ -1470,6 +1660,11 @@
 
       this.panel.addEventListener("popupshown", this.onPopupShown);
       this.panel.addEventListener("popuphidden", this.onPopupHidden);
+      this.resizeObserver = new ResizeObserver(this.scheduleUpdate);
+      this.resizeObserver.observe(this.panel);
+      window.addEventListener("resize", this.scheduleUpdate);
+      this.panel.addEventListener("transitionrun", this.scheduleUpdate);
+      this.panel.addEventListener("transitionend", this.scheduleUpdate);
 
       Nebula.logger.log("✅ [CtrlTabDualBackground] Initialized.");
     }
@@ -1488,11 +1683,19 @@
     }
 
     startTracking() {
-      if (!this.rafId) this.update();
+      this.scheduleUpdate();
+    }
+
+    scheduleUpdate() {
+      if (this.rafId !== null) return;
+      this.rafId = requestAnimationFrame(() => {
+        this.rafId = null;
+        this.update();
+      });
     }
 
     stopTracking() {
-      if (this.rafId) cancelAnimationFrame(this.rafId);
+      if (this.rafId !== null) cancelAnimationFrame(this.rafId);
       this.rafId = null;
       this.hideOverlays();
     }
@@ -1507,8 +1710,7 @@
         r.width > 5 &&
         r.height > 5 &&
         cs.display !== "none" &&
-        cs.visibility !== "hidden" &&
-        cs.opacity !== "0";
+        cs.visibility !== "hidden";
 
       if (!visible) return this.hideOverlays();
 
@@ -1519,10 +1721,7 @@
         r.width !== this.lastRect.width ||
         r.height !== this.lastRect.height;
 
-      if (!changed && this.lastVisible) {
-        this.rafId = requestAnimationFrame(this.update);
-        return;
-      }
+      if (!changed && this.lastVisible) return;
 
       this.lastRect = {
         top: r.top,
@@ -1543,7 +1742,6 @@
       );
 
       this.lastVisible = true;
-      this.rafId = requestAnimationFrame(this.update);
     }
 
     hideOverlays() {
@@ -1556,6 +1754,10 @@
     destroy() {
       this.panel?.removeEventListener("popupshown", this.onPopupShown);
       this.panel?.removeEventListener("popuphidden", this.onPopupHidden);
+      window.removeEventListener("resize", this.scheduleUpdate);
+      this.panel?.removeEventListener("transitionrun", this.scheduleUpdate);
+      this.panel?.removeEventListener("transitionend", this.scheduleUpdate);
+      this.resizeObserver?.disconnect();
       this.stopTracking();
       Object.values(this.overlays).forEach((o) => o?.remove());
       this.overlays = {};
