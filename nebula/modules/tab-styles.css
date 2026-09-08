@@ -157,6 +157,19 @@ html:not([zen-single-toolbar="true"], [zen-sidebar-expanded="true"])
 
 /* ------------------- Tab Backgrounds ------------------- */
 
+/* Zen 1.22 applies superellipse corners globally (2.1 on Windows).
+ * Keep Nebula's circular tab corners on both the background and clipping
+ * wrappers; increasing border-radius alone still leaves them boxy. */
+.tabbrowser-tab,
+.tabbrowser-tab::before,
+.tabbrowser-tab .tab-stack,
+.tabbrowser-tab .tab-background,
+.tabbrowser-tab .tab-background::before,
+.tabbrowser-tab .tab-background::after,
+tab-group[split-view-group] .tab-group-container {
+  corner-shape: round !important;
+}
+
 .tabbrowser-tab {
   .tab-background {
     border-radius: var(--nebula-border-radius) !important;
