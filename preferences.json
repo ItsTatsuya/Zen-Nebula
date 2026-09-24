@@ -152,6 +152,28 @@
   },
   {
     "type": "separator",
+    "label": "🎵 Media Player",
+    "margin": "15px 0 15px 0"
+  },
+  {
+    "type": "checkbox",
+    "property": "nebula-media-background-enabled",
+    "label": "Show artwork behind the media player",
+    "defaultValue": false
+  },
+  {
+    "type": "dropdown",
+    "property": "nebula-media-background-style",
+    "label": "Media Player Background Style",
+    "defaultValue": "blur",
+    "placeholder": false,
+    "options": [
+      { "label": "Simple blur", "value": "blur" },
+      { "label": "Thumbnail", "value": "thumbnail" }
+    ]
+  },
+  {
+    "type": "separator",
     "label": "🚥 Window Control Buttons",
     "margin": "15px 0 15px 0"
   },

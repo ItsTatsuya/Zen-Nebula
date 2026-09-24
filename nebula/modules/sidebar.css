@@ -67,25 +67,41 @@ html[nebula-collapsed-toolbar] {
 
 /* --- Titlebar theming --- */
 
-/*
- * Compact floating sidebar glass (vertical tabs).
- * Zen 1.19.9b+ only applies backdrop-filter when zen.theme.acrylic-elements is on,
- * and uses a dark-tinted filter. Nebula always applies its own glass tokens so the
- * blur matches the rest of the theme (and works even if acrylic was off at parse).
- */
+/* Filter on the floating titlebar so its background layer cannot cover the
+ * sampled web content. The background layer only supplies the tint. */
+:root[zen-compact-mode="true"] #titlebar {
+  backdrop-filter: var(--nebula-glass) !important;
+  border-radius: var(--nebula-border-radius, 13px) !important;
+}
+
+/* The History/Bookmarks panel needs a dense tint. Use the same fallback for
+ * Settings only until its in-document blur layer is ready. */
+:root[zen-compact-mode="true"]:is(
+    :has(#sidebar-box:not([hidden])),
+    [nebula-settings-page]:not([nebula-settings-glass-ready])
+  )
+  #titlebar {
+  background: color-mix(
+    in srgb,
+    var(--nebula-color-glass) 12%,
+    light-dark(#f2f2f2, #111) 88%
+  ) !important;
+}
+
+:root[zen-compact-mode="true"][nebula-settings-glass-ready] #titlebar {
+  background: light-dark(rgb(255 255 255 / 20%), rgb(0 0 0 / 40%)) !important;
+  /* Settings has its own content-side glass; blur that region only once. */
+  backdrop-filter: none !important;
+}
+
 html[nebula-compact-mode] #titlebar > .zen-toolbar-background,
 html[nebula-compact-mode] #titlebar > .zen-browser-generic-background,
 :root[zen-compact-mode="true"] #titlebar > .zen-toolbar-background,
 :root[zen-compact-mode="true"] #titlebar > .zen-browser-generic-background {
   background: transparent !important;
-  background-color: transparent !important;
   border-radius: var(--nebula-border-radius, 13px) !important;
   box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
-  backdrop-filter: var(--nebula-glass, blur(32px) saturate(140%)) !important;
-  -webkit-backdrop-filter: var(
-    --nebula-glass,
-    blur(32px) saturate(140%)
-  ) !important;
+  backdrop-filter: none !important;
   isolation: auto !important;
   contain: none !important;
 }
@@ -105,13 +121,10 @@ html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::after,
   > .zen-browser-generic-background::after {
   outline: none !important;
   background: var(--nebula-color-glass) !important;
-  background-color: var(--nebula-color-glass) !important;
   border-radius: inherit !important;
 }
 
-/* Frosted toolbar overlay (non-compact). Original Nebula hardcoded this
- * 40% glass; the blur-fix dropped it, so expanded sidebar looked opaque
- * until Sine prefs existed. Compact-mode rules above are more specific. */
+/* Keep Zen's gradient pseudo-layers translucent in either mode. */
 .zen-toolbar-background::before,
 .zen-toolbar-background::after {
   outline: none !important;
@@ -457,19 +470,16 @@ findbar toolbarbutton:active {
 
 /* -------------------------- BOOKMARKS -------------------------- */
 
-/* Transparent Sidebar Items */
+/* Keep History/Bookmarks text fully legible inside the sidebar browser. */
 .sidebar-panel {
   background: transparent !important;
   font-weight: 600 !important;
-  opacity: 0.7 !important;
 }
 
-/* Clean & Transparent Sidebar Box */
+/* The library sidebar needs its own glass surface behind its contents. */
 #sidebar-box {
-  background-color: light-dark(
-    rgb(255 255 255 / 11%),
-    rgb(0 0 0 / 20%)
-  ) !important;
+  background: var(--nebula-color-glass) !important;
+  backdrop-filter: var(--nebula-glass) !important;
   border: none !important;
 }
 

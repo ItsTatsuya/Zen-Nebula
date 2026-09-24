@@ -286,7 +286,7 @@ html[zen-single-toolbar="true"] {
     align-self: center;
     margin-right: 9px !important;
     border-radius: 50px;
-    transition: all 150ms ease-out;
+    transition: background-color 150ms ease-out;
     background-color: rgb(255 255 255 / 10%) !important;
     scale: 1 !important;
     content: none !important;
@@ -299,7 +299,7 @@ html[zen-single-toolbar="true"] {
     width: 16px !important;
     height: 14.5px !important;
     opacity: 0 !important;
-    transition: all 150ms ease-out !important;
+    transition: opacity 150ms ease-out !important;
   }
 
   .titlebar-button:hover::after {

@@ -6,10 +6,9 @@
 }
 
 /*
- * Website background tint.
- * Zen paints browser[transparent="true"] at 60%/10% white unless this
- * override wins. Fall back to fully transparent so a fresh install does
- * not keep Zen's opaque overlay when Sine prefs have not been written.
+ * Website background tint only when Zen marks a browser transparent.
+ * This does not enable transparent browsing; the Zen preference remains
+ * entirely under the user's control.
  */
 browser[transparent="true"] {
   background: var(--nebula-website-tint, transparent) !important;
@@ -164,7 +163,7 @@ browser[transparent="true"] {
   font-size: 12.5px !important;
   border: 1px solid var(--nebula-color) !important;
   background: var(--nebula-color-glass) !important;
-  backdrop-filter: blur(8px) saturate(140%) !important;
+  backdrop-filter: var(--nebula-glass) !important;
   box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
 }
 

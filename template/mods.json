@@ -1,12 +1,13 @@
 {
   "Nebula": {
     "id": "Nebula",
-    "name": "Nebula",
-    "description": "Imported via browsercfg (https://github.com/CosmoCreeper/browsercfg)",
-    "createdAt": "2000-01-01",
-    "updatedAt": "2000-01-01",
-    "homepage": "https://github.com/JustADumbPrsn/Zen-Nebula",
-    "version": "1.0.0",
+    "name": "Nebula Nova",
+    "description": "A glass-inspired theme for Zen Browser with customizable blur, animation, and media artwork.",
+    "createdAt": "2025-05-31",
+    "updatedAt": "2026-09-24",
+    "homepage": "https://github.com/ItsTatsuya/Zen-Nebula",
+    "version": "3.4.0",
+    "image": "https://raw.githubusercontent.com/ItsTatsuya/Zen-Nebula/main/screenshots/new-tab.jpg",
     "style": { "chrome": "userChrome.css", "content": "userContent.css" },
     "scripts": {
       "js/nebula.uc.js": {

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name           nebula.uc.js
-// @description    Central engine for Nebula with all modules
+// @description    Central engine for Nebula Nova with all modules
 // @author         JustAdumbPrsn
 // @version        v3.4
 // @include        main
@@ -34,9 +34,10 @@
     },
 
     runOnLoad(callback) {
-      if (document.readyState === "loading")
+      if (document.readyState === "loading") {
+        this._loadHandler = callback;
         document.addEventListener("DOMContentLoaded", callback, { once: true });
-      else callback();
+      } else callback();
     },
 
     register(ModuleClass) {
@@ -65,7 +66,11 @@
 
       if (this._initialized && typeof instance.init === "function") {
         try {
-          instance.init();
+          instance
+            .init()
+            ?.catch?.((err) =>
+              this.logger.error(`Module "${name}" failed to init:\n${err}`),
+            );
         } catch (err) {
           this.logger.error(`Module "${name}" failed to init:\n${err}`);
         }
@@ -82,16 +87,27 @@
       this.runOnLoad(() => {
         this._modules.forEach((m) => {
           try {
-            m.init?.();
+            m.init?.()?.catch?.((err) =>
+              this.logger.error(`Module "${m._name}" failed to init:\n${err}`),
+            );
           } catch (err) {
             this.logger.error(`Module "${m._name}" failed to init:\n${err}`);
           }
         });
       });
-      window.addEventListener("unload", () => this.destroy(), { once: true });
+      this._unloadHandler = () => this.destroy();
+      window.addEventListener("unload", this._unloadHandler, { once: true });
     },
 
     destroy() {
+      if (this._loadHandler) {
+        document.removeEventListener("DOMContentLoaded", this._loadHandler);
+        this._loadHandler = null;
+      }
+      if (this._unloadHandler) {
+        window.removeEventListener("unload", this._unloadHandler);
+        this._unloadHandler = null;
+      }
       this._modules.forEach((m) => {
         try {
           m.destroy?.();
@@ -100,7 +116,7 @@
         }
       });
       this.logger.log("🧹 All modules destroyed.");
-      delete window.Nebula;
+      if (window.Nebula === this) delete window.Nebula;
     },
 
     debug: {
@@ -128,6 +144,10 @@
       this.root = document.documentElement;
       this.compactObserver = null;
       this.modeObserver = null;
+      this.settingsGlassObserver = null;
+      this.settingsGlassDocument = null;
+      this.settingsGlass = null;
+      this.settingsGlassFrame = 0;
       this._faviconTimeout = null;
       this._faviconRequest = 0;
       this._gBrowserWaitTimer = null;
@@ -137,10 +157,27 @@
       this._prefObserver = {
         observe: (_subject, _topic, data) => {
           if (data === "nebula-active-tab-glow") this.updateFaviconColor();
+          if (
+            data === "var-nebula-glass-blur" ||
+            data === "var-nebula-glass-saturation"
+          ) {
+            this.updateSettingsGlass();
+          }
+        },
+      };
+      this._pageProgressListener = {
+        onLocationChange: (browser, webProgress, _request, location) => {
+          if (webProgress?.isTopLevel && browser === gBrowser.selectedBrowser) {
+            this.updateSelectedPage(location?.spec);
+          }
         },
       };
 
       this.updateFaviconColor = this.updateFaviconColor.bind(this);
+      this.updateSelectedPage = this.updateSelectedPage.bind(this);
+      this._onTabSelect = () => this.updateSelectedPage();
+      this._onSettingsLoad = () => this.updateSettingsGlass();
+      this._onSettingsResize = () => this.positionSettingsGlass();
     }
 
     async init() {
@@ -168,10 +205,7 @@
         if (!ready || this._destroyed) return;
       }
 
-      // Zen 1.19.9b+ broke chrome backdrop-filter sampling of web content after
-      // #navigator-toolbox was nested inside #browser. Zen's acrylic-elements
-      // pref re-enables the compositor layering needed for compact sidebar blur
-      // (see zen-browser/desktop acrylic CSS + Nebula issue #340 / #344).
+      // Supply Nebula's own defaults before Sine's settings are opened.
       this.ensureRuntimePrefs();
 
       // Compact mode is a root attribute. Observe only that attribute instead
@@ -181,6 +215,7 @@
           "nebula-compact-mode",
           this.root.getAttribute("zen-compact-mode") === "true",
         );
+        this.updateSettingsGlass();
       };
       this.compactObserver = new MutationObserver(updateCompactMode);
       this.compactObserver.observe(this.root, {
@@ -197,6 +232,29 @@
       });
       this.updateToolbarModes();
 
+      // Settings lives in a separate document. Its own backdrop layer can
+      // blur Settings controls beneath the floating chrome sidebar.
+      const toolbox = document.getElementById("navigator-toolbox");
+      if (toolbox) {
+        this.settingsGlassObserver = new MutationObserver(() =>
+          this.animateSettingsGlass(),
+        );
+        this.settingsGlassObserver.observe(toolbox, {
+          attributes: true,
+          attributeFilter: [
+            "zen-has-hover",
+            "zen-user-show",
+            "zen-has-empty-tab",
+            "flash-popup",
+            "has-popup-menu",
+            "movingtab",
+            "zen-compact-mode-active",
+          ],
+        });
+      }
+      gBrowser.addEventListener("load", this._onSettingsLoad, true);
+      window.addEventListener("resize", this._onSettingsResize);
+
       // Favicon color detection
       try {
         this._prefs = this._services().prefs;
@@ -204,6 +262,11 @@
           "nebula-active-tab-glow",
           this._prefObserver,
           false,
+        );
+        this._prefs.addObserver("var-nebula-glass-blur", this._prefObserver);
+        this._prefs.addObserver(
+          "var-nebula-glass-saturation",
+          this._prefObserver,
         );
       } catch (err) {
         Nebula.logger.warn(
@@ -219,9 +282,12 @@
         "TabAttrModified",
         this.updateFaviconColor,
       );
+      gBrowser.tabContainer.addEventListener("TabSelect", this._onTabSelect);
+      gBrowser.addTabsProgressListener(this._pageProgressListener);
 
       // Initial run
       this.updateFaviconColor();
+      this.updateSelectedPage();
 
       Nebula.logger.log("✅ [Polyfill] Detection active.");
     }
@@ -234,32 +300,132 @@
       );
     }
 
-    /**
-     * Prefs Nebula needs on a fresh Sine install.
-     * Sine finds preferences.json but does not apply defaultValues until the
-     * settings UI is parsed, so a first-time fork install otherwise keeps
-     * Zen's opaque overlays (installing upstream Nebula first "fixes" this
-     * only because those prefs then persist).
-     */
+    updateSelectedPage(uri = gBrowser.selectedBrowser?.currentURI?.spec ?? "") {
+      this.root.toggleAttribute(
+        "nebula-settings-page",
+        uri.startsWith("about:preferences"),
+      );
+      this.updateSettingsGlass();
+    }
+
+    updateSettingsGlass() {
+      const browser = window.gBrowser?.selectedBrowser;
+      const settings =
+        this.root.getAttribute("zen-compact-mode") === "true" &&
+        browser?.currentURI?.spec.startsWith("about:preferences");
+      const doc = settings ? browser.contentDocument : null;
+
+      if (this.settingsGlassDocument !== doc) {
+        if (this.settingsGlassFrame)
+          cancelAnimationFrame(this.settingsGlassFrame);
+        this.settingsGlassFrame = 0;
+        this.settingsGlass?.remove();
+        this.settingsGlass = null;
+        this.settingsGlassDocument = doc;
+      }
+
+      if (!doc?.body) {
+        this.root.removeAttribute("nebula-settings-glass-ready");
+        return;
+      }
+
+      if (!this.settingsGlass) {
+        const glass = doc.createElement("div");
+        glass.id = "nebula-settings-glass-underlay";
+        glass.style.cssText =
+          "position:fixed!important;z-index:2147483647!important;" +
+          "pointer-events:none!important;display:none;" +
+          "background:light-dark(rgb(255 255 255 / 12%),rgb(0 0 0 / 15%))!important;" +
+          "border-radius:var(--nebula-border-radius,13px)!important;";
+        doc.body.append(glass);
+        this.settingsGlass = glass;
+      }
+
+      const blur = this._prefs?.getStringPref("var-nebula-glass-blur", "32px");
+      const saturation = this._prefs?.getStringPref(
+        "var-nebula-glass-saturation",
+        "140%",
+      );
+      const filter = `blur(${blur || "32px"}) saturate(${saturation || "140%"})`;
+      this.settingsGlass.style.setProperty(
+        "backdrop-filter",
+        CSS.supports("backdrop-filter", filter)
+          ? filter
+          : "blur(32px) saturate(140%)",
+        "important",
+      );
+      this.root.setAttribute("nebula-settings-glass-ready", "true");
+      this.positionSettingsGlass();
+    }
+
+    isSettingsSidebarActive() {
+      return (
+        document
+          .getElementById("navigator-toolbox")
+          ?.matches(
+            ":is([zen-has-hover],[zen-user-show],[zen-has-empty-tab],[flash-popup],[has-popup-menu],[movingtab],[zen-compact-mode-active])",
+          ) || this.root.getAttribute("zen-renaming-tab") === "true"
+      );
+    }
+
+    positionSettingsGlass() {
+      if (!this.settingsGlass?.isConnected) return;
+      if (!this.isSettingsSidebarActive()) {
+        if (this.settingsGlass.style.display !== "none")
+          this.settingsGlass.style.display = "none";
+        return;
+      }
+      const browser = gBrowser.selectedBrowser;
+      const titlebar = document.getElementById("titlebar");
+      if (!browser || !titlebar) return;
+      const content = browser.getBoundingClientRect();
+      const sidebar = titlebar.getBoundingClientRect();
+      const left = Math.max(content.left, sidebar.left);
+      const right = Math.min(content.right, sidebar.right);
+      const top = Math.max(content.top, sidebar.top);
+      const bottom = Math.min(content.bottom, sidebar.bottom);
+      const glass = this.settingsGlass;
+      if (right - left < 2 || bottom - top < 2) {
+        if (glass.style.display !== "none") glass.style.display = "none";
+        return;
+      }
+      const x = `${left - content.left}px`;
+      const y = `${top - content.top}px`;
+      const width = `${right - left}px`;
+      const height = `${bottom - top}px`;
+      if (glass.style.left !== x) glass.style.left = x;
+      if (glass.style.top !== y) glass.style.top = y;
+      if (glass.style.width !== width) glass.style.width = width;
+      if (glass.style.height !== height) glass.style.height = height;
+      if (glass.style.display !== "block") glass.style.display = "block";
+    }
+
+    animateSettingsGlass() {
+      // A hidden sidebar has no blur surface to track. Cancel the reveal loop
+      // as soon as Zen removes its active attribute.
+      if (!this.settingsGlass?.isConnected || !this.isSettingsSidebarActive()) {
+        if (this.settingsGlassFrame)
+          cancelAnimationFrame(this.settingsGlassFrame);
+        this.settingsGlassFrame = 0;
+        this.positionSettingsGlass();
+        return;
+      }
+      if (this.settingsGlassFrame) return;
+      const end = performance.now() + 350;
+      const tick = () => {
+        this.positionSettingsGlass();
+        this.settingsGlassFrame =
+          this.isSettingsSidebarActive() && performance.now() < end
+            ? requestAnimationFrame(tick)
+            : 0;
+      };
+      tick();
+    }
+
+    /** Sine applies Nebula's string defaults only when its settings UI opens. */
     ensureRuntimePrefs() {
       try {
         const prefs = this._services().prefs;
-
-        const acrylicPref = "zen.theme.acrylic-elements";
-        if (!prefs.getBoolPref(acrylicPref, false)) {
-          prefs.setBoolPref(acrylicPref, true);
-          Nebula.logger.log(
-            `🔧 [Polyfill] Enabled ${acrylicPref} for compact sidebar blur (Zen 1.19.9b+ compositor fix).`,
-          );
-        }
-
-        const transparentPref = "browser.tabs.allow_transparent_browser";
-        if (!prefs.prefHasUserValue(transparentPref)) {
-          prefs.setBoolPref(transparentPref, true);
-          Nebula.logger.log(
-            `🔧 [Polyfill] Enabled ${transparentPref} so web content can composite with chrome glass.`,
-          );
-        }
 
         // Same keys original Nebula writes when its settings panel is opened.
         // Sine only applies string defaultValues during that parse, so a
@@ -432,7 +598,7 @@
           ctx.drawImage(img, 0, 0, size, size);
 
           const data = ctx.getImageData(0, 0, size, size).data;
-          const counts = [];
+          const counts = new Map();
 
           for (let i = 0; i < data.length; i += 4) {
             const [r, g, b, a] = [
@@ -443,15 +609,15 @@
             ];
             if (a < 128) continue;
             const key = `${r & 0xfc},${g & 0xfc},${b & 0xfc}`; // round to multiple of 4
-            const index = counts.findIndex((c) => c.key === key);
-            if (index >= 0) counts[index].freq++;
-            else counts.push({ key, r, g, b, freq: 1 });
+            const color = counts.get(key);
+            if (color) color.freq++;
+            else counts.set(key, { r, g, b, freq: 1 });
           }
 
           let best = null;
           let brightCandidate = null;
 
-          for (let c of counts) {
+          for (const c of counts.values()) {
             const hsl = this.rgbToHsl(c.r, c.g, c.b);
             const vibrancy = hsl.s * (1 - Math.abs(0.5 - hsl.l) * 2);
             const brightness = (0.299 * c.r + 0.587 * c.g + 0.114 * c.b) / 255;
@@ -490,7 +656,7 @@
         } catch (err) {
           if (requestId === this._faviconRequest)
             this.root.style.removeProperty("--nebula-selected-favicon-color");
-          console.error("[NebulaPolyfill] Favicon color error:", err);
+          Nebula.logger.warn(`[Polyfill] Favicon color unavailable: ${err}`);
         }
       }, 100);
     }
@@ -554,6 +720,15 @@
       this._destroyed = true;
       this.compactObserver?.disconnect();
       this.modeObserver?.disconnect();
+      this.settingsGlassObserver?.disconnect();
+      if (this.settingsGlassFrame)
+        cancelAnimationFrame(this.settingsGlassFrame);
+      this.settingsGlassFrame = 0;
+      this.settingsGlass?.remove();
+      this.settingsGlass = null;
+      this.settingsGlassDocument = null;
+      window.gBrowser?.removeEventListener("load", this._onSettingsLoad, true);
+      window.removeEventListener("resize", this._onSettingsResize);
       this._gBrowserWaitResolve?.(false);
       this._gBrowserWaitResolve = null;
       if (this._gBrowserWaitTimer) clearTimeout(this._gBrowserWaitTimer);
@@ -562,10 +737,13 @@
       this._faviconRequest++;
 
       try {
-        this._prefs?.removeObserver(
+        for (const name of [
           "nebula-active-tab-glow",
-          this._prefObserver,
-        );
+          "var-nebula-glass-blur",
+          "var-nebula-glass-saturation",
+        ]) {
+          this._prefs?.removeObserver(name, this._prefObserver);
+        }
       } catch {}
       this._prefs = null;
 
@@ -584,7 +762,15 @@
           "TabAttrModified",
           this.updateFaviconColor,
         );
+        gBrowser.tabContainer.removeEventListener(
+          "TabSelect",
+          this._onTabSelect,
+        );
+        gBrowser.removeTabsProgressListener(this._pageProgressListener);
       }
+
+      this.root.removeAttribute("nebula-settings-page");
+      this.root.removeAttribute("nebula-settings-glass-ready");
 
       this.root.removeAttribute("nebula-single-toolbar");
       this.root.removeAttribute("nebula-multi-toolbar");
@@ -601,50 +787,42 @@
       this.gradientSlider = null;
       this._patched = false;
       this._sliderHandler = this.sync.bind(this);
+      this._onUiReady = this._onUiReady.bind(this);
+      this._patchedPrototype = null;
 
       // Store original methods without polluting prototype
       this._origMethods = new WeakMap();
     }
 
     init() {
-      this._waitFor(
-        () => document.querySelector("#PanelUI-zen-gradient-generator-opacity"),
-        (slider) => {
-          this.gradientSlider = slider;
-          slider.min = 0.0; // force min opacity
-          slider.addEventListener("input", this._sliderHandler);
-
-          this.sync();
-          this._patchThemePicker();
-        },
-      );
+      this._onUiReady();
+      window.addEventListener("load", this._onUiReady, { once: true });
+      document.addEventListener("popupshowing", this._onUiReady, true);
     }
 
-    _waitFor(fn, callback, maxRetries = 40) {
-      let retries = maxRetries;
-      const tryFind = () => {
-        const el = fn();
-        if (el) return callback(el);
-        if (retries-- > 0) {
-          Nebula.logger.debug?.(
-            `[GradientSlider] Waiting… retries left: ${retries}`,
-          );
-          requestAnimationFrame(tryFind);
-        } else {
-          Nebula.logger.error("❌ [GradientSlider] Target not found.");
-        }
-      };
-      tryFind();
+    _onUiReady() {
+      const slider = document.getElementById(
+        "PanelUI-zen-gradient-generator-opacity",
+      );
+      if (slider && this.gradientSlider !== slider) {
+        this.gradientSlider?.removeEventListener("input", this._sliderHandler);
+        this.gradientSlider = slider;
+        slider.min = 0;
+        slider.addEventListener("input", this._sliderHandler);
+        this.sync();
+      }
+      this._patchThemePicker();
     }
 
     sync() {
       if (!this.gradientSlider) return;
       const val = +this.gradientSlider.value;
       const isZero = val === 0;
-      this.root.style.setProperty(
-        "--nebula-gradient-opacity",
-        isZero ? "0" : null,
-      );
+      if (isZero) {
+        this.root.style.setProperty("--nebula-gradient-opacity", "0");
+      } else {
+        this.root.style.removeProperty("--nebula-gradient-opacity");
+      }
       this.root.toggleAttribute("nebula-zen-gradient-contrast-zero", isZero);
       Nebula.logger.debug?.(`[GradientSlider] Sync → ${val}`);
     }
@@ -652,61 +830,54 @@
     _patchThemePicker() {
       if (this._patched) return;
 
-      this._waitFor(
-        () =>
-          window.nsZenThemePicker?.prototype ||
-          window.browser?.gZenThemePicker?.constructor?.prototype,
-        (proto) => {
-          if (!proto?.blendWithWhiteOverlay) return;
+      const proto = window.gZenThemePicker?.constructor?.prototype;
+      if (!proto?.blendWithWhiteOverlay) return;
 
-          // Save original
-          this._origMethods.set(proto, proto.blendWithWhiteOverlay);
+      // Save original
+      this._origMethods.set(proto, proto.blendWithWhiteOverlay);
 
-          const moduleInstance = this;
+      const moduleInstance = this;
 
-          proto.blendWithWhiteOverlay = function (baseColor, opacity) {
-            const val = +moduleInstance.gradientSlider?.value ?? opacity;
-            if (val === 0) {
-              if (Array.isArray(baseColor)) {
-                return `rgba(${baseColor.join(",")},0)`;
-              }
-              if (
-                typeof baseColor === "string" &&
-                baseColor.startsWith("rgb")
-              ) {
-                return baseColor.replace(/rgb(a)?\(([^)]+)\)/, "rgba($2, 0)");
-              }
-              return "rgba(0,0,0,0)";
-            }
-            // Call the original method with the correct context
-            return moduleInstance._origMethods
-              .get(proto)
-              .call(this, baseColor, opacity);
-          };
+      proto.blendWithWhiteOverlay = function (baseColor, opacity) {
+        const val = moduleInstance.gradientSlider
+          ? Number(moduleInstance.gradientSlider.value)
+          : opacity;
+        if (val === 0) {
+          if (Array.isArray(baseColor)) {
+            return `rgba(${baseColor.join(",")},0)`;
+          }
+          if (typeof baseColor === "string" && baseColor.startsWith("rgb")) {
+            return baseColor.replace(/rgb(a)?\(([^)]+)\)/, "rgba($2, 0)");
+          }
+          return "rgba(0,0,0,0)";
+        }
+        // Call the original method with the correct context
+        return moduleInstance._origMethods
+          .get(proto)
+          .call(this, baseColor, opacity);
+      };
 
-          this._patched = true;
-          Nebula.logger.log(
-            "✅ [GradientSlider] Patched blendWithWhiteOverlay",
-          );
-        },
-      );
+      this._patchedPrototype = proto;
+      this._patched = true;
+      Nebula.logger.log("✅ [GradientSlider] Patched blendWithWhiteOverlay");
     }
 
     destroy() {
+      window.removeEventListener("load", this._onUiReady);
+      document.removeEventListener("popupshowing", this._onUiReady, true);
       if (this.gradientSlider) {
         this.gradientSlider.removeEventListener("input", this._sliderHandler);
         this.gradientSlider = null;
       }
 
       if (this._patched) {
-        const proto =
-          window.nsZenThemePicker?.prototype ||
-          window.browser?.gZenThemePicker?.constructor?.prototype;
+        const proto = this._patchedPrototype;
         if (proto && this._origMethods.has(proto)) {
           proto.blendWithWhiteOverlay = this._origMethods.get(proto);
           this._origMethods.delete(proto);
         }
         this._patched = false;
+        this._patchedPrototype = null;
       }
 
       this.root.style.removeProperty("--nebula-gradient-opacity");
@@ -766,7 +937,7 @@
         ],
       });
 
-      gZenCompactModeManager.addEventListener(this._compactCallback);
+      window.gZenCompactModeManager?.addEventListener?.(this._compactCallback);
 
       if (this.root.hasAttribute("nebula-compact-mode")) {
         this.startLiveTracking();
@@ -869,7 +1040,9 @@
     }
 
     destroy() {
-      gZenCompactModeManager.removeEventListener(this._compactCallback);
+      window.gZenCompactModeManager?.removeEventListener?.(
+        this._compactCallback,
+      );
       window.removeEventListener("resize", this.scheduleUpdate);
       this.titlebar?.removeEventListener("transitionrun", this.scheduleUpdate);
       this.titlebar?.removeEventListener("transitionend", this.scheduleUpdate);
@@ -880,173 +1053,6 @@
       this.overlay?.remove();
       this.overlay = null;
       Nebula.logger.log("🧹 [TitlebarBackground] Destroyed.");
-    }
-  }
-
-  // ========== NebulaNavbarBackgroundModule ==========
-  class NebulaNavbarBackgroundModule {
-    constructor() {
-      this.root = document.documentElement;
-      this.browser = document.getElementById("browser");
-      this.navbar = document.getElementById("nav-bar");
-      this.overlay = null;
-      this.lastRect = {};
-      this.lastVisible = false;
-      this.animationFrameId = null;
-
-      this.update = this.update.bind(this);
-      this.scheduleUpdate = this.scheduleUpdate.bind(this);
-      this._compactCallback = this._compactCallback.bind(this);
-      this.resizeObserver = null;
-      this.rootObserver = null;
-    }
-
-    init() {
-      if (!this.browser || !this.navbar) {
-        Nebula.logger.warn(
-          "⚠️ [NavbarBackground] Required elements not found.",
-        );
-        return;
-      }
-
-      this.overlay = document.createElement("div");
-      this.overlay.id = "Nebula-navbar-background";
-      Object.assign(this.overlay.style, {
-        position: "absolute",
-        display: "none",
-      });
-      this.browser.appendChild(this.overlay);
-
-      this.resizeObserver = new ResizeObserver(this.scheduleUpdate);
-      this.resizeObserver.observe(this.navbar);
-      this.resizeObserver.observe(this.browser);
-      window.addEventListener("resize", this.scheduleUpdate);
-      this.navbar.addEventListener("transitionrun", this.scheduleUpdate);
-      this.navbar.addEventListener("transitionend", this.scheduleUpdate);
-      this.rootObserver = new MutationObserver(this.scheduleUpdate);
-      this.rootObserver.observe(this.root, {
-        attributes: true,
-        attributeFilter: [
-          "nebula-compact-mode",
-          "zen-sidebar-expanded",
-          "zen-right-side",
-          "zen-single-toolbar",
-        ],
-      });
-
-      gZenCompactModeManager.addEventListener(this._compactCallback);
-
-      if (this.root.hasAttribute("nebula-compact-mode")) {
-        this.startLiveTracking();
-      }
-
-      Nebula.logger.log("✅ [NavbarBackground] Tracking initialized.");
-    }
-
-    scheduleUpdate() {
-      if (this.animationFrameId !== null) return;
-      this.animationFrameId = requestAnimationFrame(() => {
-        this.animationFrameId = null;
-        this.update();
-      });
-    }
-
-    _compactCallback() {
-      const isCompact = this.root.hasAttribute("nebula-compact-mode");
-      if (isCompact) {
-        this.startLiveTracking();
-      } else {
-        this.stopLiveTracking();
-        this.hideOverlay();
-      }
-    }
-
-    update() {
-      const isCompact = this.root.hasAttribute("nebula-compact-mode");
-      if (!isCompact) {
-        this.stopLiveTracking();
-        this.hideOverlay();
-        return;
-      }
-
-      const rect = this.navbar.getBoundingClientRect();
-      const style = getComputedStyle(this.navbar);
-
-      const isVisible =
-        rect.width > 5 &&
-        rect.height > 5 &&
-        style.display !== "none" &&
-        style.visibility !== "hidden" &&
-        rect.bottom > 0 &&
-        rect.top < window.innerHeight;
-
-      const changed =
-        rect.top !== this.lastRect.top ||
-        rect.left !== this.lastRect.left ||
-        rect.width !== this.lastRect.width ||
-        rect.height !== this.lastRect.height;
-
-      if (!changed && this.lastVisible === isVisible) {
-        return;
-      }
-
-      this.lastRect = {
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-      };
-
-      if (isVisible) {
-        Object.assign(this.overlay.style, {
-          top: `${rect.top + window.scrollY}px`,
-          left: `${rect.left + window.scrollX}px`,
-          width: `${rect.width}px`,
-          height: `${rect.height}px`,
-          display: "block",
-        });
-
-        if (!this.lastVisible) {
-          this.overlay.classList.add("visible");
-          this.lastVisible = true;
-        }
-      } else {
-        this.hideOverlay();
-      }
-    }
-
-    hideOverlay() {
-      if (this.overlay) {
-        this.overlay.classList.remove("visible");
-        this.overlay.style.display = "none";
-      }
-      this.lastVisible = false;
-    }
-
-    startLiveTracking() {
-      this.stopLiveTracking();
-      this.scheduleUpdate();
-    }
-
-    stopLiveTracking() {
-      if (this.animationFrameId !== null) {
-        cancelAnimationFrame(this.animationFrameId);
-        this.animationFrameId = null;
-      }
-    }
-
-    destroy() {
-      gZenCompactModeManager.removeEventListener(this._compactCallback);
-      window.removeEventListener("resize", this.scheduleUpdate);
-      this.navbar?.removeEventListener("transitionrun", this.scheduleUpdate);
-      this.navbar?.removeEventListener("transitionend", this.scheduleUpdate);
-      this.resizeObserver?.disconnect();
-      this.rootObserver?.disconnect();
-      this.stopLiveTracking();
-      this.hideOverlay();
-      this.overlay?.remove();
-      this.overlay = null;
-      Nebula.logger.log("🧹 [NavbarBackground] Destroyed.");
     }
   }
 
@@ -1217,16 +1223,20 @@
   // ========== NebulaMediaCoverArtModule ==========
   class NebulaMediaCoverArtModule {
     constructor() {
-      this.OVERLAY_ID = "Nebula-media-cover-art";
-      this.TOOLBAR_ITEM_SELECTOR = "#zen-media-controls-toolbar > toolbaritem";
-
-      this.lastArtworkUrl = null;
-      this.originalSetupMediaController = null;
-      this.attachedController = null;
-      this.overlay = null;
+      this.OVERLAY_CLASS = "Nebula-media-cover-art";
+      this.toolbar = null;
+      this.cardControllers = new Map();
+      this.originalActivateMediaControls = null;
+      this.patchedActivateMediaControls = null;
+      this.cardObserver = null;
       this._controllerWaitTimer = null;
       this._destroyed = false;
-      this._metadataChangeHandler = this._metadataChangeHandler.bind(this);
+      this._prefs = null;
+      this.backgroundEnabled = false;
+      this.backgroundStyle = "blur";
+      this._prefObserver = {
+        observe: () => this._syncPreferences(),
+      };
     }
 
     init() {
@@ -1237,7 +1247,9 @@
     _waitForController() {
       if (this._destroyed) return;
       if (
-        typeof window.gZenMediaController?.setupMediaController === "function"
+        typeof window.gZenMediaController?.activateMediaControls ===
+          "function" &&
+        document.querySelector("#zen-media-controls-toolbar")
       ) {
         this._onControllerReady();
       } else {
@@ -1249,130 +1261,222 @@
     }
 
     _onControllerReady() {
-      if (this.originalSetupMediaController) return;
+      if (this.originalActivateMediaControls) return;
 
-      this.originalSetupMediaController =
-        gZenMediaController.setupMediaController.bind(gZenMediaController);
-      gZenMediaController.setupMediaController =
-        this._setupMediaControllerPatcher.bind(this);
+      const manager = window.gZenMediaController;
+      this.toolbar = document.querySelector("#zen-media-controls-toolbar");
+      this.originalActivateMediaControls = manager.activateMediaControls;
+      this.patchedActivateMediaControls = (controller, browser) => {
+        const existingCards = new Set(this._getCards());
+        const result = this.originalActivateMediaControls.call(
+          manager,
+          controller,
+          browser,
+        );
+        const newCard = this._getCards().find(
+          (card) =>
+            !existingCards.has(card) && !card.hasAttribute("media-sharing"),
+        );
+        if (newCard) this._bindCard(newCard, controller, browser);
+        return result;
+      };
+      manager.activateMediaControls = this.patchedActivateMediaControls;
 
-      const initialController = gZenMediaController._currentMediaController;
-      if (initialController) {
-        this._attachMetadataHandler(initialController);
-        this._setBackgroundFromMetadata(initialController);
-      } else {
-        this._cleanupToDefaultState();
+      this.cardObserver = new MutationObserver(() => this._pruneCards());
+      this.cardObserver.observe(this.toolbar, { childList: true });
+      try {
+        this._prefs =
+          globalThis.Services?.prefs ||
+          ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs")
+            .Services.prefs;
+        this._prefs.addObserver(
+          "nebula-media-background-enabled",
+          this._prefObserver,
+        );
+        this._prefs.addObserver(
+          "nebula-media-background-style",
+          this._prefObserver,
+        );
+        this._syncPreferences();
+      } catch (err) {
+        Nebula.logger.warn(
+          `⚠️ [MediaCoverArt] Could not observe settings: ${err}`,
+        );
       }
+      this._bindExistingCards();
 
       Nebula.logger.log("✅ [MediaCoverArt] Hooked into MediaPlayer.");
     }
 
-    _setupMediaControllerPatcher(controller, browser) {
-      if (controller) {
-        this._attachMetadataHandler(controller);
-        this._setBackgroundFromMetadata(controller);
-      } else {
-        this._detachMetadataHandler();
-        this._cleanupToDefaultState();
-      }
-      return this.originalSetupMediaController(controller, browser);
+    _getCards() {
+      return Array.from(
+        this.toolbar?.querySelectorAll(".zen-media-card") || [],
+      );
     }
 
-    _attachMetadataHandler(controller) {
-      if (!controller || controller === this.attachedController) return;
-
-      this._detachMetadataHandler();
-      controller.removeEventListener(
-        "metadatachange",
-        this._metadataChangeHandler,
+    _syncPreferences() {
+      this.backgroundEnabled = this._prefs?.getBoolPref(
+        "nebula-media-background-enabled",
+        false,
       );
-      controller.addEventListener(
-        "metadatachange",
-        this._metadataChangeHandler,
+      const style = this._prefs?.getStringPref(
+        "nebula-media-background-style",
+        "blur",
       );
-      this.attachedController = controller;
-    }
-
-    _detachMetadataHandler() {
-      this.attachedController?.removeEventListener(
-        "metadatachange",
-        this._metadataChangeHandler,
-      );
-      this.attachedController = null;
-    }
-
-    _metadataChangeHandler(event) {
-      const controller = event.target;
-      if (controller !== this.attachedController) return;
-      if (controller && typeof controller.getMetadata === "function") {
-        this._setBackgroundFromMetadata(controller);
-      } else {
-        this._cleanupToDefaultState();
+      this.backgroundStyle = style === "thumbnail" ? "thumbnail" : "blur";
+      for (const [card, { controller, browser }] of this.cardControllers) {
+        this._updateCardArtwork(card, controller, browser);
       }
     }
 
-    _setBackgroundFromMetadata(controller) {
-      const metadata = controller?.getMetadata?.();
-      const artwork = metadata?.artwork;
-
-      if (!Array.isArray(artwork) || !artwork.length) {
-        return this._cleanupToDefaultState();
-      }
-
-      const sorted = [...artwork].sort((a, b) => {
-        const [aw, ah] = a.sizes?.split("x").map(Number) || [0, 0];
-        const [bw, bh] = b.sizes?.split("x").map(Number) || [0, 0];
-        return bw * bh - aw * ah;
-      });
-
-      const coverUrl = sorted[0]?.src || null;
-      if (coverUrl === this.lastArtworkUrl && this.overlay) return;
-
-      this.lastArtworkUrl = coverUrl;
-      this._ensureOverlayElement();
-      this._updateOverlayStyle(coverUrl);
-    }
-
-    _ensureOverlayElement() {
-      if (this.overlay) return;
-
-      const toolbarItem = document.querySelector(this.TOOLBAR_ITEM_SELECTOR);
-      if (!toolbarItem) return;
-
-      this.overlay = document.createElement("div");
-      this.overlay.id = this.OVERLAY_ID;
-      toolbarItem.prepend(this.overlay);
-    }
-
-    _updateOverlayStyle(coverUrl) {
-      if (!this.overlay) return;
-
-      if (coverUrl) {
-        if (this.overlay.style.backgroundImage !== `url("${coverUrl}")`) {
-          this.overlay.style.backgroundImage = `url("${coverUrl}")`;
+    _bindExistingCards() {
+      const candidates = [];
+      for (const browser of window.gBrowser?.browsers || []) {
+        try {
+          const controller = browser.browsingContext?.mediaController;
+          if (typeof controller?.getMetadata !== "function") continue;
+          let title = null;
+          try {
+            title = controller.getMetadata()?.title;
+          } catch {
+            // Inactive controllers can reject metadata requests.
+          }
+          candidates.push({ browser, controller, title });
+        } catch {
+          // A discarded tab may no longer expose its browsing context.
         }
-        this.overlay.classList.add("visible");
-      } else {
-        this._cleanupToDefaultState();
+      }
+
+      for (const card of this._getCards()) {
+        if (card.hasAttribute("media-sharing")) continue;
+        const title = card.querySelector(".zen-media-title")?.textContent;
+        let index = candidates.findIndex(
+          (candidate) => candidate.title && candidate.title === title,
+        );
+        if (index < 0) {
+          const activeCandidates = candidates.filter(
+            ({ controller }) => controller.isActive,
+          );
+          if (activeCandidates.length === 1) {
+            index = candidates.indexOf(activeCandidates[0]);
+          } else if (candidates.length === 1) {
+            index = 0;
+          }
+        }
+        if (index >= 0) {
+          const { controller, browser } = candidates.splice(index, 1)[0];
+          this._bindCard(card, controller, browser);
+        }
       }
     }
 
-    _manageOverlayVisibility(show) {
-      if (!this.overlay) return;
+    _bindCard(card, controller, browser) {
+      if (!controller?.getMetadata || this.cardControllers.has(card)) return;
+      const onMetadataChange = () =>
+        this._updateCardArtwork(card, controller, browser);
+      controller.addEventListener("metadatachange", onMetadataChange);
+      this.cardControllers.set(card, { controller, browser, onMetadataChange });
+      this._updateCardArtwork(card, controller, browser);
+    }
 
-      if (show) {
-        this.overlay.classList.add("visible");
-      } else {
-        this.overlay.classList.remove("visible");
-        this.overlay.style.backgroundImage = "none";
+    _pruneCards() {
+      for (const [card, entry] of this.cardControllers) {
+        if (card.isConnected) continue;
+        entry.controller.removeEventListener(
+          "metadatachange",
+          entry.onMetadataChange,
+        );
+        this.cardControllers.delete(card);
       }
     }
 
-    _cleanupToDefaultState() {
-      this.lastArtworkUrl = null;
-      this._manageOverlayVisibility(false);
-      this.overlay?.remove();
-      this.overlay = null;
+    _youtubeArtwork(browser) {
+      try {
+        const url = new URL(browser.currentURI.spec);
+        const hostname = url.hostname.toLowerCase();
+        let videoId = null;
+        if (
+          [
+            "youtube.com",
+            "www.youtube.com",
+            "m.youtube.com",
+            "music.youtube.com",
+          ].includes(hostname)
+        ) {
+          videoId =
+            url.pathname === "/watch"
+              ? url.searchParams.get("v")
+              : url.pathname.match(/^\/(?:shorts|live)\/([^/]+)/)?.[1];
+        } else if (hostname === "youtu.be") {
+          videoId = url.pathname.slice(1);
+        }
+        if (/^[a-zA-Z0-9_-]{11}$/.test(videoId || "")) {
+          return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+        }
+      } catch {}
+      return null;
+    }
+
+    _updateCardArtwork(card, controller, browser) {
+      if (!this.backgroundEnabled) {
+        this._removeCardArtwork(card);
+        return;
+      }
+
+      let metadata = null;
+      try {
+        metadata = controller?.getMetadata?.();
+      } catch {
+        // The URL fallback can still provide artwork for a YouTube tab.
+      }
+      const artwork = metadata?.artwork;
+      const sorted = (Array.isArray(artwork) ? [...artwork] : []).sort(
+        (a, b) => {
+          const [aw, ah] = a?.sizes?.split("x").map(Number) || [0, 0];
+          const [bw, bh] = b?.sizes?.split("x").map(Number) || [0, 0];
+          return bw * bh - aw * ah;
+        },
+      );
+
+      const safeUrl = (candidate) => {
+        try {
+          const url = new URL(candidate);
+          if (["http:", "https:", "data:", "blob:"].includes(url.protocol)) {
+            return url.href;
+          }
+        } catch {}
+        return null;
+      };
+      const coverUrl =
+        sorted.map((item) => safeUrl(item?.src)).find(Boolean) ||
+        safeUrl(this._youtubeArtwork(browser));
+      if (!coverUrl) {
+        this._removeCardArtwork(card);
+        return;
+      }
+
+      let overlay = card.querySelector(`.${this.OVERLAY_CLASS}`);
+      if (!overlay) {
+        overlay = document.createElementNS(
+          "http://www.w3.org/1999/xhtml",
+          "div",
+        );
+        overlay.className = this.OVERLAY_CLASS;
+        card.prepend(overlay);
+      }
+      overlay.style.setProperty(
+        "--nebula-media-cover-url",
+        `url(${JSON.stringify(coverUrl)})`,
+      );
+      overlay.classList.add("visible");
+      card.setAttribute("nebula-has-cover-art", "true");
+      card.setAttribute("nebula-media-background-style", this.backgroundStyle);
+    }
+
+    _removeCardArtwork(card) {
+      card.removeAttribute("nebula-has-cover-art");
+      card.removeAttribute("nebula-media-background-style");
+      card.querySelector(`.${this.OVERLAY_CLASS}`)?.remove();
     }
 
     destroy() {
@@ -1382,16 +1486,35 @@
         this._controllerWaitTimer = null;
       }
 
-      if (this.originalSetupMediaController) {
-        if (window.gZenMediaController)
-          window.gZenMediaController.setupMediaController =
-            this.originalSetupMediaController;
-        this.originalSetupMediaController = null;
+      if (
+        window.gZenMediaController?.activateMediaControls ===
+        this.patchedActivateMediaControls
+      ) {
+        window.gZenMediaController.activateMediaControls =
+          this.originalActivateMediaControls;
       }
-
-      this._detachMetadataHandler();
-
-      this._cleanupToDefaultState();
+      this.originalActivateMediaControls = null;
+      this.patchedActivateMediaControls = null;
+      this.cardObserver?.disconnect();
+      this.cardObserver = null;
+      for (const name of [
+        "nebula-media-background-enabled",
+        "nebula-media-background-style",
+      ]) {
+        try {
+          this._prefs?.removeObserver(name, this._prefObserver);
+        } catch {}
+      }
+      this._prefs = null;
+      for (const [card, entry] of this.cardControllers) {
+        entry.controller.removeEventListener(
+          "metadatachange",
+          entry.onMetadataChange,
+        );
+        this._removeCardArtwork(card);
+      }
+      this.cardControllers.clear();
+      this.toolbar = null;
 
       Nebula.logger.log("🧹 [MediaCoverArt] Destroyed.");
     }
@@ -1420,6 +1543,7 @@
       ];
 
       this.observers = new Map();
+      this._menuTimers = new Map();
 
       // Bind methods
       this.handlePopupShowing = this.handlePopupShowing.bind(this);
@@ -1488,18 +1612,20 @@
     animateMenuItems(popup) {
       if (!popup) return;
       const items = this.getMenuItems(popup);
-      // Batch DOM updates for animation
-      window.requestAnimationFrame(() => {
-        items.forEach((item, index) => this.animateItem(item, index));
-      });
-    }
-
-    animateItem(item, index) {
       const shouldAnimate =
         getComputedStyle(this.root)
           .getPropertyValue("--nebula-menu-animation")
           .trim() === "true";
+      // Batch DOM updates for animation
+      window.requestAnimationFrame(() => {
+        if (!popup.isConnected) return;
+        items.forEach((item, index) =>
+          this.animateItem(item, index, shouldAnimate),
+        );
+      });
+    }
 
+    animateItem(item, index, shouldAnimate) {
       item.classList.remove("nebula-menu-anim");
       item.style.animationDelay = "";
 
@@ -1557,7 +1683,14 @@
                 ["hidden", "collapsed"].includes(m.attributeName)),
           )
         ) {
-          setTimeout(() => this.animateMenuItems(popup), 5);
+          clearTimeout(this._menuTimers.get(popup));
+          this._menuTimers.set(
+            popup,
+            setTimeout(() => {
+              this._menuTimers.delete(popup);
+              this.animateMenuItems(popup);
+            }, 5),
+          );
         }
       });
 
@@ -1581,6 +1714,8 @@
     handlePopupHidden(event) {
       const popup = event.target;
       if (!this.isTargetMenu(popup)) return;
+      clearTimeout(this._menuTimers.get(popup));
+      this._menuTimers.delete(popup);
       this.cleanupMenuItems(popup);
 
       if (this.observers.has(popup)) {
@@ -1605,6 +1740,8 @@
 
       this.observers.forEach((observer) => observer.disconnect());
       this.observers.clear();
+      this._menuTimers.forEach((timer) => clearTimeout(timer));
+      this._menuTimers.clear();
 
       document.querySelectorAll(".nebula-menu-anim").forEach((item) => {
         item.classList.remove("nebula-menu-anim");
@@ -1769,7 +1906,6 @@
   Nebula.register(NebulaPolyfillModule);
   Nebula.register(NebulaGradientSliderModule);
   Nebula.register(NebulaTitlebarBackgroundModule);
-  //Nebula.register(NebulaNavbarBackgroundModule); NOT NEEDED ANYMORE
   Nebula.register(NebulaURLBarBackgroundModule);
   Nebula.register(NebulaMediaCoverArtModule);
   Nebula.register(NebulaMenuModule);

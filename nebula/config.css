@@ -1,4 +1,4 @@
-/* This is the config guide for Nebula theme
+/* This is the config guide for Nebula Nova
 Here you can tweak the various settings like animations, features, etc. to your own preference 
 by changing the variables or adding preferences in about:config
 without searching through the code directly */
@@ -58,30 +58,4 @@ without searching through the code directly */
     var(--var-nebula-color-shadow-light, rgb(255 255 255 / 5.5%)),
     var(--var-nebula-color-shadow-dark, rgb(0 0 0 / 55%))
   ) !important;
-}
-
-/* DO NOT ADD OTHER CSS BELOW */
-/* More styles and options will come soon here! */
-
-/* Pre-defined backup values */
-:root {
-  /* ✨ Glass & Blur */
-  --nebula-glass: blur(32px) saturate(140%);
-  --nebula-color-glass: light-dark(rgb(255 255 255 / 40%), rgb(0 0 0 / 40%));
-
-  /* 🖼️ Layout */
-  --nebula-border-radius: 13px;
-  --nebula-essentials-width: 60px;
-  --nebula-workspace-grayscale: 100%;
-
-  /* 🎨 UI & Website Tint */
-  --nebula-ui-tint: light-dark(rgb(255 255 255 / 20%), rgb(0 0 0 / 20%));
-  --nebula-website-tint: light-dark(rgb(255 255 255 / 0%), rgb(0 0 0 / 0%));
-
-  /* 🔮 Colors */
-  --nebula-color-min: light-dark(rgb(255 255 255 / 10%), rgb(0 0 0 / 20%));
-  --nebula-color: light-dark(rgb(255 255 255 / 25%), rgb(0 0 0 / 35%));
-  --nebula-color-hover: light-dark(rgb(255 255 255 / 35%), rgb(0 0 0 / 45%));
-  --nebula-color-selected: light-dark(rgb(255 255 255 / 45%), rgb(0 0 0 / 55%));
-  --nebula-color-shadow: light-dark(rgb(255 255 255 / 5.5%), rgb(0 0 0 / 55%));
 }

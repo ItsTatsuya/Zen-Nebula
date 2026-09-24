@@ -1,25 +1,43 @@
 /* -------------------- Media Controls Toolbar -------------------- */
 
-#Nebula-media-cover-art {
+.Nebula-media-cover-art {
   position: absolute !important;
   inset: 0 !important;
-  z-index: -1 !important;
+  z-index: 0 !important;
   pointer-events: none !important;
   border-radius: inherit !important;
   overflow: hidden !important;
-  background-size: 100% 100% !important;
-  background-position: center !important;
-  background-repeat: no-repeat !important;
-  background-blend-mode: darken !important;
-  filter: blur(24px) saturate(140%) contrast(120%) !important;
   opacity: 0 !important;
   transition: opacity 0.4s ease-in-out !important;
 }
 
-#zen-media-controls-toolbar
-  > toolbaritem:hover
-  > #Nebula-media-cover-art.visible {
-  opacity: 0.4 !important;
+.Nebula-media-cover-art.visible {
+  opacity: 1 !important;
+}
+
+.Nebula-media-cover-art::before {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  background-image: var(--nebula-media-cover-url);
+  background-position: center;
+  background-size: cover;
+  background-repeat: no-repeat;
+  filter: blur(2px) brightness(0.6);
+}
+
+.zen-media-card[nebula-media-background-style="blur"]
+  .Nebula-media-cover-art::before {
+  inset: -20px;
+  filter: blur(16px) saturate(140%) brightness(0.75);
+}
+
+.zen-media-card[nebula-media-background-style="blur"]
+  .Nebula-media-cover-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(rgb(0 0 0 / 25%), rgb(0 0 0 / 42%));
 }
 
 :root[zen-sidebar-expanded="true"] #zen-media-controls-toolbar {
@@ -48,19 +66,23 @@
 /* Toolbar Item Styles */
 #zen-media-controls-toolbar > toolbaritem {
   position: relative;
+  isolation: isolate;
   border-radius: var(--nebula-border-radius) !important;
-  backdrop-filter: saturate(1) !important;
+  backdrop-filter: var(--nebula-glass) !important;
   transition:
     border-radius 0.3s ease,
     box-shadow 0.3s ease-in-out,
     background-color 0.3s ease-in-out;
-  background-color: var(--nebula-color-min) !important;
+  background-color: light-dark(
+    rgb(250 250 250 / 92%),
+    rgb(18 18 18 / 92%)
+  ) !important;
 
   &:hover {
     border-radius: var(--nebula-border-radius) !important;
-    background: light-dark(
-      rgb(235 235 235 / 100%),
-      rgb(10 10 10 / 100%)
+    background-color: light-dark(
+      rgb(250 250 250 / 97%),
+      rgb(18 18 18 / 97%)
     ) !important;
     box-shadow: 0 0 15px var(--nebula-color-shadow);
   }
@@ -73,15 +95,29 @@
   transition: padding 0.15s ease-in-out !important;
 }
 
-#zen-media-title {
-  font-weight: 720 !important;
+#zen-media-controls-toolbar .zen-media-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
 }
 
-#zen-media-artist {
-  font-size: 10px !important;
+#zen-media-controls-toolbar .zen-media-artist {
+  font-size: 11px !important;
 }
 
-#zen-media-info-vbox::before {
+#zen-media-controls-toolbar .zen-media-info-vbox {
+  mask-image: none !important;
+}
+
+#zen-media-controls-toolbar > .zen-media-card[nebula-has-cover-art] {
+  color: white !important;
+}
+
+#zen-media-controls-toolbar > .zen-media-card > .zen-media-main-vbox {
+  position: relative;
+  z-index: 1;
+}
+
+#zen-media-controls-toolbar .zen-media-info-vbox::before {
   display: none !important;
 }
 

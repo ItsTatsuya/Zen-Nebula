@@ -160,7 +160,10 @@
 
 /* Style 1 - Default */
 .browserStack {
-  transition: all 0.3s cubic-bezier(0.175, 0.385, 0.12, 1) !important;
+  transition:
+    scale 0.3s cubic-bezier(0.175, 0.385, 0.12, 1),
+    filter 0.3s cubic-bezier(0.175, 0.385, 0.12, 1),
+    opacity 0.3s cubic-bezier(0.175, 0.385, 0.12, 1) !important;
 }
 
 #browser:has(#urlbar[open]) .browserStack {
@@ -172,7 +175,10 @@
 /* Style 2 – Zoom out */
 @media (-moz-pref("nebula-urlbar-animation", 2)) {
   .browserStack {
-    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+    transition:
+      scale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      filter 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      opacity 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
   }
 
   #browser:has(#urlbar[open]) .browserStack {
@@ -185,14 +191,20 @@
 /* Style 3 – Desaturate and Darken */
 @media (-moz-pref("nebula-urlbar-animation", 3)) {
   .browserStack {
-    transition: all 0.3s cubic-bezier(0.175, 0.385, 0.12, 1) !important;
+    transition:
+      scale 0.3s cubic-bezier(0.175, 0.385, 0.12, 1),
+      filter 0.3s cubic-bezier(0.175, 0.385, 0.12, 1),
+      opacity 0.3s cubic-bezier(0.175, 0.385, 0.12, 1) !important;
   }
 
   #browser:has(#urlbar[open]) .browserStack {
     filter: saturate(0%) brightness(20%) !important;
     opacity: 0.85 !important;
     scale: 1.05 !important;
-    transition: all 0.25s cubic-bezier(0.175, 0.385, 0.12, 1) !important;
+    transition:
+      scale 0.25s cubic-bezier(0.175, 0.385, 0.12, 1),
+      filter 0.25s cubic-bezier(0.175, 0.385, 0.12, 1),
+      opacity 0.25s cubic-bezier(0.175, 0.385, 0.12, 1) !important;
   }
 }
 
