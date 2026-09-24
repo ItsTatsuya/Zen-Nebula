@@ -74,24 +74,13 @@ html[nebula-collapsed-toolbar] {
   border-radius: var(--nebula-border-radius, 13px) !important;
 }
 
-/* The History/Bookmarks panel needs a dense tint. Use the same fallback for
- * Settings only until its in-document blur layer is ready. */
-:root[zen-compact-mode="true"]:is(
-    :has(#sidebar-box:not([hidden])),
-    [nebula-settings-page]:not([nebula-settings-glass-ready])
-  )
-  #titlebar {
+/* The History/Bookmarks panel needs a dense tint for readable text. */
+:root[zen-compact-mode="true"]:has(#sidebar-box:not([hidden])) #titlebar {
   background: color-mix(
     in srgb,
     var(--nebula-color-glass) 12%,
     light-dark(#f2f2f2, #111) 88%
   ) !important;
-}
-
-:root[zen-compact-mode="true"][nebula-settings-glass-ready] #titlebar {
-  background: light-dark(rgb(255 255 255 / 20%), rgb(0 0 0 / 40%)) !important;
-  /* Settings has its own content-side glass; blur that region only once. */
-  backdrop-filter: none !important;
 }
 
 html[nebula-compact-mode] #titlebar > .zen-toolbar-background,

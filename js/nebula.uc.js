@@ -144,10 +144,6 @@
       this.root = document.documentElement;
       this.compactObserver = null;
       this.modeObserver = null;
-      this.settingsGlassObserver = null;
-      this.settingsGlassDocument = null;
-      this.settingsGlass = null;
-      this.settingsGlassFrame = 0;
       this._faviconTimeout = null;
       this._faviconRequest = 0;
       this._gBrowserWaitTimer = null;
@@ -157,27 +153,10 @@
       this._prefObserver = {
         observe: (_subject, _topic, data) => {
           if (data === "nebula-active-tab-glow") this.updateFaviconColor();
-          if (
-            data === "var-nebula-glass-blur" ||
-            data === "var-nebula-glass-saturation"
-          ) {
-            this.updateSettingsGlass();
-          }
-        },
-      };
-      this._pageProgressListener = {
-        onLocationChange: (browser, webProgress, _request, location) => {
-          if (webProgress?.isTopLevel && browser === gBrowser.selectedBrowser) {
-            this.updateSelectedPage(location?.spec);
-          }
         },
       };
 
       this.updateFaviconColor = this.updateFaviconColor.bind(this);
-      this.updateSelectedPage = this.updateSelectedPage.bind(this);
-      this._onTabSelect = () => this.updateSelectedPage();
-      this._onSettingsLoad = () => this.updateSettingsGlass();
-      this._onSettingsResize = () => this.positionSettingsGlass();
     }
 
     async init() {
@@ -215,7 +194,6 @@
           "nebula-compact-mode",
           this.root.getAttribute("zen-compact-mode") === "true",
         );
-        this.updateSettingsGlass();
       };
       this.compactObserver = new MutationObserver(updateCompactMode);
       this.compactObserver.observe(this.root, {
@@ -232,29 +210,6 @@
       });
       this.updateToolbarModes();
 
-      // Settings lives in a separate document. Its own backdrop layer can
-      // blur Settings controls beneath the floating chrome sidebar.
-      const toolbox = document.getElementById("navigator-toolbox");
-      if (toolbox) {
-        this.settingsGlassObserver = new MutationObserver(() =>
-          this.animateSettingsGlass(),
-        );
-        this.settingsGlassObserver.observe(toolbox, {
-          attributes: true,
-          attributeFilter: [
-            "zen-has-hover",
-            "zen-user-show",
-            "zen-has-empty-tab",
-            "flash-popup",
-            "has-popup-menu",
-            "movingtab",
-            "zen-compact-mode-active",
-          ],
-        });
-      }
-      gBrowser.addEventListener("load", this._onSettingsLoad, true);
-      window.addEventListener("resize", this._onSettingsResize);
-
       // Favicon color detection
       try {
         this._prefs = this._services().prefs;
@@ -262,11 +217,6 @@
           "nebula-active-tab-glow",
           this._prefObserver,
           false,
-        );
-        this._prefs.addObserver("var-nebula-glass-blur", this._prefObserver);
-        this._prefs.addObserver(
-          "var-nebula-glass-saturation",
-          this._prefObserver,
         );
       } catch (err) {
         Nebula.logger.warn(
@@ -282,12 +232,8 @@
         "TabAttrModified",
         this.updateFaviconColor,
       );
-      gBrowser.tabContainer.addEventListener("TabSelect", this._onTabSelect);
-      gBrowser.addTabsProgressListener(this._pageProgressListener);
-
       // Initial run
       this.updateFaviconColor();
-      this.updateSelectedPage();
 
       Nebula.logger.log("✅ [Polyfill] Detection active.");
     }
@@ -298,128 +244,6 @@
         ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs")
           .Services
       );
-    }
-
-    updateSelectedPage(uri = gBrowser.selectedBrowser?.currentURI?.spec ?? "") {
-      this.root.toggleAttribute(
-        "nebula-settings-page",
-        uri.startsWith("about:preferences"),
-      );
-      this.updateSettingsGlass();
-    }
-
-    updateSettingsGlass() {
-      const browser = window.gBrowser?.selectedBrowser;
-      const settings =
-        this.root.getAttribute("zen-compact-mode") === "true" &&
-        browser?.currentURI?.spec.startsWith("about:preferences");
-      const doc = settings ? browser.contentDocument : null;
-
-      if (this.settingsGlassDocument !== doc) {
-        if (this.settingsGlassFrame)
-          cancelAnimationFrame(this.settingsGlassFrame);
-        this.settingsGlassFrame = 0;
-        this.settingsGlass?.remove();
-        this.settingsGlass = null;
-        this.settingsGlassDocument = doc;
-      }
-
-      if (!doc?.body) {
-        this.root.removeAttribute("nebula-settings-glass-ready");
-        return;
-      }
-
-      if (!this.settingsGlass) {
-        const glass = doc.createElement("div");
-        glass.id = "nebula-settings-glass-underlay";
-        glass.style.cssText =
-          "position:fixed!important;z-index:2147483647!important;" +
-          "pointer-events:none!important;display:none;" +
-          "background:light-dark(rgb(255 255 255 / 12%),rgb(0 0 0 / 15%))!important;" +
-          "border-radius:var(--nebula-border-radius,13px)!important;";
-        doc.body.append(glass);
-        this.settingsGlass = glass;
-      }
-
-      const blur = this._prefs?.getStringPref("var-nebula-glass-blur", "32px");
-      const saturation = this._prefs?.getStringPref(
-        "var-nebula-glass-saturation",
-        "140%",
-      );
-      const filter = `blur(${blur || "32px"}) saturate(${saturation || "140%"})`;
-      this.settingsGlass.style.setProperty(
-        "backdrop-filter",
-        CSS.supports("backdrop-filter", filter)
-          ? filter
-          : "blur(32px) saturate(140%)",
-        "important",
-      );
-      this.root.setAttribute("nebula-settings-glass-ready", "true");
-      this.positionSettingsGlass();
-    }
-
-    isSettingsSidebarActive() {
-      return (
-        document
-          .getElementById("navigator-toolbox")
-          ?.matches(
-            ":is([zen-has-hover],[zen-user-show],[zen-has-empty-tab],[flash-popup],[has-popup-menu],[movingtab],[zen-compact-mode-active])",
-          ) || this.root.getAttribute("zen-renaming-tab") === "true"
-      );
-    }
-
-    positionSettingsGlass() {
-      if (!this.settingsGlass?.isConnected) return;
-      if (!this.isSettingsSidebarActive()) {
-        if (this.settingsGlass.style.display !== "none")
-          this.settingsGlass.style.display = "none";
-        return;
-      }
-      const browser = gBrowser.selectedBrowser;
-      const titlebar = document.getElementById("titlebar");
-      if (!browser || !titlebar) return;
-      const content = browser.getBoundingClientRect();
-      const sidebar = titlebar.getBoundingClientRect();
-      const left = Math.max(content.left, sidebar.left);
-      const right = Math.min(content.right, sidebar.right);
-      const top = Math.max(content.top, sidebar.top);
-      const bottom = Math.min(content.bottom, sidebar.bottom);
-      const glass = this.settingsGlass;
-      if (right - left < 2 || bottom - top < 2) {
-        if (glass.style.display !== "none") glass.style.display = "none";
-        return;
-      }
-      const x = `${left - content.left}px`;
-      const y = `${top - content.top}px`;
-      const width = `${right - left}px`;
-      const height = `${bottom - top}px`;
-      if (glass.style.left !== x) glass.style.left = x;
-      if (glass.style.top !== y) glass.style.top = y;
-      if (glass.style.width !== width) glass.style.width = width;
-      if (glass.style.height !== height) glass.style.height = height;
-      if (glass.style.display !== "block") glass.style.display = "block";
-    }
-
-    animateSettingsGlass() {
-      // A hidden sidebar has no blur surface to track. Cancel the reveal loop
-      // as soon as Zen removes its active attribute.
-      if (!this.settingsGlass?.isConnected || !this.isSettingsSidebarActive()) {
-        if (this.settingsGlassFrame)
-          cancelAnimationFrame(this.settingsGlassFrame);
-        this.settingsGlassFrame = 0;
-        this.positionSettingsGlass();
-        return;
-      }
-      if (this.settingsGlassFrame) return;
-      const end = performance.now() + 350;
-      const tick = () => {
-        this.positionSettingsGlass();
-        this.settingsGlassFrame =
-          this.isSettingsSidebarActive() && performance.now() < end
-            ? requestAnimationFrame(tick)
-            : 0;
-      };
-      tick();
     }
 
     /** Sine applies Nebula's string defaults only when its settings UI opens. */
@@ -720,15 +544,6 @@
       this._destroyed = true;
       this.compactObserver?.disconnect();
       this.modeObserver?.disconnect();
-      this.settingsGlassObserver?.disconnect();
-      if (this.settingsGlassFrame)
-        cancelAnimationFrame(this.settingsGlassFrame);
-      this.settingsGlassFrame = 0;
-      this.settingsGlass?.remove();
-      this.settingsGlass = null;
-      this.settingsGlassDocument = null;
-      window.gBrowser?.removeEventListener("load", this._onSettingsLoad, true);
-      window.removeEventListener("resize", this._onSettingsResize);
       this._gBrowserWaitResolve?.(false);
       this._gBrowserWaitResolve = null;
       if (this._gBrowserWaitTimer) clearTimeout(this._gBrowserWaitTimer);
@@ -737,13 +552,10 @@
       this._faviconRequest++;
 
       try {
-        for (const name of [
+        this._prefs?.removeObserver(
           "nebula-active-tab-glow",
-          "var-nebula-glass-blur",
-          "var-nebula-glass-saturation",
-        ]) {
-          this._prefs?.removeObserver(name, this._prefObserver);
-        }
+          this._prefObserver,
+        );
       } catch {}
       this._prefs = null;
 
@@ -762,15 +574,7 @@
           "TabAttrModified",
           this.updateFaviconColor,
         );
-        gBrowser.tabContainer.removeEventListener(
-          "TabSelect",
-          this._onTabSelect,
-        );
-        gBrowser.removeTabsProgressListener(this._pageProgressListener);
       }
-
-      this.root.removeAttribute("nebula-settings-page");
-      this.root.removeAttribute("nebula-settings-glass-ready");
 
       this.root.removeAttribute("nebula-single-toolbar");
       this.root.removeAttribute("nebula-multi-toolbar");
