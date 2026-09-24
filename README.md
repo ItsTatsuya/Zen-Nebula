@@ -1,23 +1,13 @@
 # Nebula Nova
 
-A glass-inspired theme for [Zen Browser](https://zen-browser.app/) with a soft sidebar, compact mode, optional motion, and an artwork-backed media player. Nebula Nova is installed and configured through [Sine](https://github.com/CosmoCreeper/Sine).
+Fork of [Zen-Nebula](https://github.com/JustADumbPrsn/Zen-Nebula). A glass based theme for [Zen Browser](https://zen-browser.app/). Nebula Nova is installed and configured through [Sine](https://github.com/CosmoCreeper/Sine).
 
-![Nebula Nova on the New Tab page](screenshots/new-tab.jpg)
-
-## Showcase
-
-| Browsing                                                               | Optional media artwork                                                             |
-| ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| ![Nebula Nova in noncompact mode](screenshots/noncompact-browsing.jpg) | ![Simple blur media player on the New Tab page](screenshots/media-simple-blur.jpg) |
-
-Artwork is off by default. When enabled, the media player starts with simple blur. Thumbnail style is also available:
-
-![Thumbnail media style](screenshots/media-thumbnail.jpg)
+![Nebula Nova on the New Tab page](screenshots/base.png)
 
 ## Install
 
 1. Install Sine using its [setup guide](https://github.com/CosmoCreeper/Sine).
-2. In Zen, open **Settings → Cosine Mods** and install **Nebula Nova** from the marketplace.
+2. In Zen, open **Settings → Cosine Mods** and paste [repo link](https://github.com/ItsTatsuya/Zen-Nebula)
 3. Open the mod's settings (gear icon) to choose the glass, animation, layout, and media options.
 4. Restart Zen after installing or updating the mod so its chrome styles and script load together.
 
