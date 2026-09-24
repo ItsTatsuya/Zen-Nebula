@@ -193,10 +193,7 @@
     .zen-glance-background,
     :has(.zen-glance-background)
   ) {
-  transition:
-    scale 0.2s ease,
-    opacity 0.2s ease,
-    filter 0.2s ease !important;
+  transition: all 0.2s ease !important;
   scale: 0.975 !important;
   opacity: 1;
 }
@@ -212,29 +209,6 @@
   filter: none !important;
 }
 
-/* A newly selected panel may have been hidden by the deck, so its scale
- * transition has no visible starting frame. Keyframes provide one. */
-@media (-moz-pref("nebula-tab-switch-animation", 1)) {
-  @keyframes nebula-default-tab-enter {
-    from {
-      transform: scale(0.975);
-    }
-
-    to {
-      transform: none;
-    }
-  }
-
-  #tabbrowser-tabpanels
-    > hbox.deck-selected:not(
-      [zen-split="true"],
-      .zen-glance-background,
-      :has(.zen-glance-background)
-    ) {
-    animation: nebula-default-tab-enter 0.24s ease-out both !important;
-  }
-}
-
 @media (-moz-pref("nebula-tab-switch-animation", 2)) {
   #tabbrowser-tabpanels
     > hbox:not(
@@ -243,7 +217,7 @@
       :has(.zen-glance-background)
     ) {
     transition:
-      scale 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
+      all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1),
       filter 0.2s ease-out !important;
     scale: 0.95 !important;
     opacity: 1;
@@ -269,9 +243,7 @@
       .zen-glance-background,
       :has(.zen-glance-background)
     ) {
-    transition:
-      scale 0.24s cubic-bezier(0.3, 0.6, 0.3, 1.2),
-      transform 0.24s cubic-bezier(0.3, 0.6, 0.3, 1.2) !important;
+    transition: all 0.24s cubic-bezier(0.3, 0.6, 0.3, 1.2) !important;
     scale: 0.98 !important;
     transform: translateY(10px);
     opacity: 1;
@@ -297,9 +269,7 @@
       .zen-glance-background,
       :has(.zen-glance-background)
     ) {
-    transition:
-      scale 0.2s ease,
-      opacity 0.2s ease;
+    transition: all 0.2s ease;
     opacity: 0 !important;
     scale: 0.975 !important;
     position: absolute !important;
@@ -332,6 +302,7 @@
       transform 0.2s ease,
       filter 0.2s ease,
       opacity 0.2s;
+    will-change: transform, filter, opacity;
   }
 
   #tabbrowser-tabpanels
