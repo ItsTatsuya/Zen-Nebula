@@ -106,6 +106,7 @@
 
 #zen-media-controls-toolbar .zen-media-info-vbox {
   mask-image: none !important;
+  overflow-x: hidden !important;
 }
 
 #zen-media-controls-toolbar > .zen-media-card[nebula-has-cover-art] {
