@@ -128,7 +128,7 @@
   }
 }
 
-@media (not (-moz-pref("nebula-ui-font", "browser"))) {
+@media (not (-moz-pref("nebula-ui-font", "browser"))) or (-moz-pref("nebula-ui-font-custom-enable")) {
   :is(
     #nav-bar,
     #TabsToolbar,
@@ -161,35 +161,16 @@
   }
 }
 
-@media (-moz-pref("nebula-ui-font-custom-enable")) {
-  :is(
-    #nav-bar,
-    #TabsToolbar,
-    #PersonalToolbar,
-    #urlbar,
-    #sidebar-box,
-    #zen-essentials-container,
-    #zen-workspaces-button,
-    #customization-container,
-    #customization-uidensity-menu,
-    #unified-extensions-panel,
-    #tab-notification-deck,
-    tooltip,
-    .browserContainer > findbar,
-    menupopup,
-    #mainPopupSet *,
-    #PersonalToolbar *,
-    #tabbrowser-tabs,
-    .tabbrowser-tab,
-    .tab-label,
-    .tab-text,
-    .toolbarbutton-text,
-    .sidebar-panel,
-    .zen-current-workspace-indicator-name,
-    #zen-tabs-wrapper,
-    #navigator-toolbox *:not(.zen-toolbar-background, #zen-toolbar-background)
-  ) {
-    font-family: var(--nebula-ui-font) !important;
-    font-weight: var(--nebula-ui-font-weight, 400) !important;
+/* The Places history sidebar is its own chrome document, so the browser
+ * window's selectors above cannot reach its tree rows or context menu. */
+@-moz-document url("chrome://browser/content/places/historySidebar.xhtml")
+{
+  @media (not (-moz-pref("nebula-ui-font", "browser"))) or (-moz-pref("nebula-ui-font-custom-enable")) {
+    :root,
+    :root *,
+    treechildren::-moz-tree-cell-text {
+      font-family: var(--nebula-ui-font) !important;
+      font-weight: var(--nebula-ui-font-weight, 400) !important;
+    }
   }
 }

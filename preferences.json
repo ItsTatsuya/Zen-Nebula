@@ -216,7 +216,7 @@
   {
     "type": "dropdown",
     "property": "nebula-ui-font-weight",
-    "label": "UI Font Weight (~only applies when a UI font other than Browser default is used~)",
+    "label": "UI Font Weight (~applies to custom fonts and non-default UI fonts~)",
     "defaultValue": "400",
     "placeholder": false,
     "options": [

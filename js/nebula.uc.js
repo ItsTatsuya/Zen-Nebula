@@ -2,7 +2,7 @@
 // @name           nebula.uc.js
 // @description    Central engine for Nebula Nova with all modules
 // @author         JustAdumbPrsn
-// @version        v3.4
+// @version        v3.4.1
 // @include        main
 // @grant          none
 // ==/UserScript==
@@ -149,6 +149,9 @@
       this._gBrowserWaitTimer = null;
       this._gBrowserWaitResolve = null;
       this._prefs = null;
+      this._historySidebarBrowser = null;
+      this._historySidebarFontObserver = null;
+      this._historySidebarFontValue = "";
       this._destroyed = false;
       this._prefObserver = {
         observe: (_subject, _topic, data) => {
@@ -157,6 +160,7 @@
       };
 
       this.updateFaviconColor = this.updateFaviconColor.bind(this);
+      this._syncHistorySidebarFont = this.syncHistorySidebarFont.bind(this);
     }
 
     async init() {
@@ -186,6 +190,23 @@
 
       // Supply Nebula's own defaults before Sine's settings are opened.
       this.ensureRuntimePrefs();
+
+      // The History sidebar is a separate chrome document and cannot inherit
+      // Sine's custom font variable from the browser window's root element.
+      this._historySidebarBrowser = document.getElementById("sidebar");
+      this._historySidebarBrowser?.addEventListener(
+        "load",
+        this._syncHistorySidebarFont,
+        true,
+      );
+      this._historySidebarFontObserver = new MutationObserver(
+        this._syncHistorySidebarFont,
+      );
+      this._historySidebarFontObserver.observe(this.root, {
+        attributes: true,
+        attributeFilter: ["style"],
+      });
+      this._syncHistorySidebarFont();
 
       // Compact mode is a root attribute. Observe only that attribute instead
       // of querying the whole browser for every DOM mutation.
@@ -287,6 +308,50 @@
       } catch (err) {
         Nebula.logger.warn(
           `⚠️ [Polyfill] Could not apply runtime prefs: ${err}`,
+        );
+      }
+    }
+
+    syncHistorySidebarFont() {
+      if (this._destroyed) return;
+
+      try {
+        const sidebarDocument = this._historySidebarBrowser?.contentDocument;
+        const sidebarRoot = sidebarDocument?.documentElement;
+        if (
+          !sidebarRoot ||
+          sidebarDocument.documentURI !==
+            "chrome://browser/content/places/historySidebar.xhtml"
+        ) {
+          return;
+        }
+
+        const fontFamily = getComputedStyle(this.root)
+          .getPropertyValue("--nebula-ui-font-custom")
+          .trim();
+        if (fontFamily) {
+          if (
+            sidebarRoot.style.getPropertyValue("--nebula-ui-font-custom") !==
+            fontFamily
+          ) {
+            sidebarRoot.style.setProperty(
+              "--nebula-ui-font-custom",
+              fontFamily,
+            );
+          }
+          this._historySidebarFontValue = fontFamily;
+        } else if (this._historySidebarFontValue) {
+          if (
+            sidebarRoot.style.getPropertyValue("--nebula-ui-font-custom") ===
+            this._historySidebarFontValue
+          ) {
+            sidebarRoot.style.removeProperty("--nebula-ui-font-custom");
+          }
+          this._historySidebarFontValue = "";
+        }
+      } catch (err) {
+        Nebula.logger.warn(
+          `[Polyfill] Could not sync the History sidebar font: ${err}`,
         );
       }
     }
@@ -544,6 +609,28 @@
       this._destroyed = true;
       this.compactObserver?.disconnect();
       this.modeObserver?.disconnect();
+      this._historySidebarFontObserver?.disconnect();
+      this._historySidebarFontObserver = null;
+      this._historySidebarBrowser?.removeEventListener(
+        "load",
+        this._syncHistorySidebarFont,
+        true,
+      );
+      try {
+        const sidebarDocument = this._historySidebarBrowser?.contentDocument;
+        const sidebarRoot = sidebarDocument?.documentElement;
+        if (
+          sidebarRoot &&
+          sidebarDocument.documentURI ===
+            "chrome://browser/content/places/historySidebar.xhtml" &&
+          sidebarRoot.style.getPropertyValue("--nebula-ui-font-custom") ===
+            this._historySidebarFontValue
+        ) {
+          sidebarRoot.style.removeProperty("--nebula-ui-font-custom");
+        }
+      } catch {}
+      this._historySidebarBrowser = null;
+      this._historySidebarFontValue = "";
       this._gBrowserWaitResolve?.(false);
       this._gBrowserWaitResolve = null;
       if (this._gBrowserWaitTimer) clearTimeout(this._gBrowserWaitTimer);
