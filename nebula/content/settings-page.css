@@ -212,9 +212,10 @@
       --nebula-settings-section-surface: var(--nebula-color);
     }
 
-    /* The input owns its surface; the sticky wrapper must remain clear. */
+    /* Keep native sticky geometry and focus clearance. The decorative layer
+     * covers scrolling content and fades below the header without masking
+     * the search field, focus ring, or policy notices. */
     #search-container,
-    #search-container::before,
     #search-container::after {
       background: transparent !important;
       backdrop-filter: none !important;
@@ -222,9 +223,84 @@
       border-color: transparent !important;
     }
 
+    #search-container::before {
+      content: "";
+      position: absolute;
+      z-index: 0;
+      inset: 0 -32px -64px;
+      pointer-events: none;
+      background: light-dark(
+        rgb(255 255 255 / 90%),
+        rgb(28 28 32 / 90%)
+      ) !important;
+      backdrop-filter: var(--nebula-glass) !important;
+      /* Feather every exposed edge. The eased 96px fade avoids a visible
+       * crease where the former short, linear fade began below the field. */
+      mask-image:
+        linear-gradient(
+          to bottom,
+          #000 calc(100% - 96px),
+          rgb(0 0 0 / 94%) calc(100% - 80px),
+          rgb(0 0 0 / 72%) calc(100% - 64px),
+          rgb(0 0 0 / 28%) calc(100% - 32px),
+          rgb(0 0 0 / 6%) calc(100% - 16px),
+          transparent 100%
+        ),
+        linear-gradient(
+          to right,
+          transparent,
+          #000 32px,
+          #000 calc(100% - 32px),
+          transparent
+        );
+      mask-composite: intersect;
+      box-shadow: none !important;
+      border: none !important;
+    }
+
+    #search-container > * {
+      position: relative;
+      z-index: 1;
+    }
+
     #searchInput {
-      background-color: var(--input-text-background-color) !important;
+      /* The header supplies the frost. Keep one lighter field surface on the
+       * moz-input-search host rather than filling its shadow input again. */
+      --input-text-background-color: transparent !important;
+      --input-text-border: 1px solid
+        light-dark(rgb(0 0 0 / 14%), rgb(255 255 255 / 14%)) !important;
+
+      background-color: light-dark(
+        rgb(255 255 255 / 40%),
+        rgb(0 0 0 / 16%)
+      ) !important;
       border-radius: var(--nebula-settings-radius) !important;
+      backdrop-filter: none !important;
+      box-shadow: none !important;
+
+      &:focus-within {
+        background-color: light-dark(
+          rgb(255 255 255 / 60%),
+          rgb(0 0 0 / 24%)
+        ) !important;
+      }
+    }
+
+    @media (forced-colors: active) {
+      #search-container::before {
+        background: Canvas !important;
+        backdrop-filter: none !important;
+        mask-image: none;
+      }
+
+      #searchInput,
+      #searchInput:focus-within {
+        --input-text-border: 1px solid CanvasText !important;
+
+        background-color: Canvas !important;
+        backdrop-filter: none !important;
+        box-shadow: none !important;
+      }
     }
   }
 }
