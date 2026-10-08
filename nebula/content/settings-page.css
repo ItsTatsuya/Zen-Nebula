@@ -1,0 +1,230 @@
+/* Concentric Settings surfaces: outer radius = inner radius + edge inset.
+ * Keep the configured radius on cards and independent controls; derive their
+ * section shell from its existing padding and border without changing layout. */
+@-moz-document url-prefix("about:preferences") {
+  :root {
+    --nebula-settings-radius: var(--nebula-border-radius, 13px);
+    --nebula-settings-section-padding: 16px;
+    --nebula-settings-border-width: 1px;
+    --nebula-settings-section-inset: calc(
+      var(--nebula-settings-section-padding) +
+        var(--nebula-settings-border-width)
+    );
+    --nebula-settings-section-radius: calc(
+      var(--nebula-settings-radius) + var(--nebula-settings-section-inset)
+    );
+    --nebula-settings-section-surface: light-dark(
+      rgb(255 255 255 / 28%),
+      rgb(0 0 0 / 25%)
+    );
+    --nebula-settings-card-surface: light-dark(
+      rgb(255 255 255 / 60%),
+      rgb(255 255 255 / 6%)
+    );
+    --nebula-settings-card-border: light-dark(
+      rgb(0 0 0 / 10%),
+      rgb(255 255 255 / 12%)
+    );
+
+    /* Native shadow components also read these tokens. Superellipse(1) is round. */
+    --nebula-mods-section-surface: var(
+      --nebula-settings-section-surface
+    ) !important;
+    --nebula-mods-card-surface: var(--nebula-settings-card-surface) !important;
+    --nebula-mods-card-border: var(--nebula-settings-card-border) !important;
+    --background-color-box: var(--nebula-settings-card-surface) !important;
+    --zen-settings-secondary-background: var(
+      --nebula-settings-section-surface
+    ) !important;
+    --zen-squircle-value: 1 !important;
+    --border-radius-medium: var(--nebula-settings-radius) !important;
+    --border-radius-large: var(--nebula-settings-radius) !important;
+    --button-border-radius: var(--nebula-settings-radius) !important;
+    --input-text-border-radius: var(--nebula-settings-radius) !important;
+    --input-search-border-radius: var(--nebula-settings-radius) !important;
+    --card-border-radius: var(--nebula-settings-radius) !important;
+    --card-border-radius-compact: var(--nebula-settings-radius) !important;
+    --box-border-radius: var(--nebula-settings-radius) !important;
+    --box-border-radius-inner: max(
+      0px,
+      calc(var(--box-border-radius) - var(--nebula-settings-border-width))
+    ) !important;
+    --card-background-color: var(--nebula-settings-card-surface) !important;
+    --card-border: 1px solid var(--nebula-settings-card-border) !important;
+    --card-box-shadow: none !important;
+    --button-background-color: light-dark(
+      rgb(255 255 255 / 44%),
+      rgb(255 255 255 / 12%)
+    ) !important;
+    --button-background-color-hover: light-dark(
+      rgb(255 255 255 / 60%),
+      rgb(255 255 255 / 20%)
+    ) !important;
+    --button-background-color-active: light-dark(
+      rgb(255 255 255 / 72%),
+      rgb(255 255 255 / 28%)
+    ) !important;
+    --input-text-background-color: light-dark(
+      rgb(255 255 255 / 40%),
+      rgb(0 0 0 / 22%)
+    ) !important;
+  }
+
+  * {
+    corner-shape: round !important;
+  }
+
+  groupbox:not(#sineInstallationGroup:popover-open),
+  setting-group {
+    box-sizing: border-box !important;
+    padding: var(--nebula-settings-section-padding) !important;
+    background: var(--nebula-settings-section-surface) !important;
+    border: var(--nebula-settings-border-width) solid
+      var(--nebula-settings-card-border) !important;
+    border-radius: var(--nebula-settings-section-radius) !important;
+  }
+
+  .card,
+  moz-card,
+  moz-box-group {
+    background-color: var(--nebula-settings-card-surface) !important;
+    border-radius: var(--nebula-settings-radius) !important;
+  }
+
+  moz-card {
+    --card-background-color: var(--nebula-settings-card-surface) !important;
+    --card-border: 1px solid var(--nebula-settings-card-border) !important;
+    --card-box-shadow: none !important;
+  }
+
+  /* Joined native rows paint right against their group border. Let the native
+   * first/last-row rules consume the inner token; middle rows stay square. */
+  moz-box-group {
+    --box-border-radius: var(--nebula-settings-radius) !important;
+  }
+
+  /* Zen's compact-mode preview has an even 7px padding and a 1px border. */
+  .zen-compact-mode-styles-browser-wrapper {
+    --nebula-settings-preview-inset: 8px;
+
+    border-radius: var(--nebula-settings-radius) !important;
+
+    > div {
+      border-radius: max(
+        0px,
+        calc(
+          var(--nebula-settings-radius) - var(--nebula-settings-preview-inset)
+        )
+      ) !important;
+    }
+  }
+
+  /* These previews/cards are independent, with unequal or wide content insets. */
+  .zenThemeMarketplaceItem,
+  #zenLayoutList [layout] img,
+  #zen-theme-builder-color-picker,
+  #zen-theme-builder-color-picker-canvas {
+    border-radius: var(--nebula-settings-radius) !important;
+  }
+
+  #zen-theme-builder {
+    border-radius: calc(var(--nebula-settings-radius) + 15px) !important;
+  }
+
+  #zen-theme-builder-color-picker-deck {
+    /* Its outside edge is inset 10px from the picker. */
+    border-radius: max(
+      0px,
+      calc(var(--nebula-settings-radius) - 10px)
+    ) !important;
+  }
+
+  setting-group,
+  moz-box-group {
+    --box-border-color: var(--nebula-settings-card-border) !important;
+  }
+
+  button,
+  menulist,
+  input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"]),
+  .zenCKSOption-input {
+    border-radius: var(--nebula-settings-radius) !important;
+  }
+
+  /* Preserve opaque switch thumbs while card surfaces use glass tokens. */
+  moz-toggle {
+    --background-color-box: light-dark(#fff, #1b1b1f) !important;
+    --background-color-canvas: light-dark(#fff, #1b1b1f) !important;
+  }
+
+  button {
+    appearance: none !important;
+  }
+
+  table,
+  .action-box {
+    background-color: var(--nebula-settings-card-surface) !important;
+    border-radius: var(--nebula-settings-radius) !important;
+  }
+
+  tr {
+    background: transparent !important;
+    border-radius: 0 !important;
+    outline: none !important;
+  }
+
+  groupbox button:not(.primary, .danger-button),
+  groupbox menulist {
+    background-color: var(--button-background-color) !important;
+    color: var(--button-text-color, var(--text-color)) !important;
+
+    &:hover:not(:disabled, [disabled="true"]) {
+      background-color: var(--button-background-color-hover) !important;
+    }
+
+    &:active:not(:disabled, [disabled="true"]) {
+      background-color: var(--button-background-color-active) !important;
+    }
+  }
+
+  dialog,
+  .dialogBox {
+    border-radius: var(--nebula-settings-radius) !important;
+  }
+
+  .dialogFrame {
+    /* The frame shares the dialog edge, inside its 1px border. */
+    border-radius: max(
+      0px,
+      calc(var(--nebula-settings-radius) - var(--nebula-settings-border-width))
+    ) !important;
+  }
+
+  .dialogBox {
+    background-color: light-dark(
+      rgb(255 255 255 / 88%),
+      rgb(24 24 30 / 88%)
+    ) !important;
+  }
+
+  @media (-moz-pref("browser.tabs.allow_transparent_browser")) {
+    :root {
+      --nebula-settings-section-surface: var(--nebula-color);
+    }
+
+    /* The input owns its surface; the sticky wrapper must remain clear. */
+    #search-container,
+    #search-container::before,
+    #search-container::after {
+      background: transparent !important;
+      backdrop-filter: none !important;
+      box-shadow: none !important;
+      border-color: transparent !important;
+    }
+
+    #searchInput {
+      background-color: var(--input-text-background-color) !important;
+      border-radius: var(--nebula-settings-radius) !important;
+    }
+  }
+}

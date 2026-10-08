@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name           nebula.uc.js
+// @name           Nebula Nova
 // @description    Central engine for Nebula Nova with all modules
-// @author         JustAdumbPrsn
-// @version        v3.4.1
+// @author         ItsTatsuya
+// @version        3.5.0
 // @include        main
 // @grant          none
 // ==/UserScript==
@@ -21,7 +21,7 @@
     _initialized: false,
 
     logger: {
-      _prefix: "[Nebula]",
+      _prefix: "[Nebula Nova]",
       log(msg) {
         console.log(`${this._prefix} ${msg}`);
       },
@@ -146,21 +146,30 @@
       this.modeObserver = null;
       this._faviconTimeout = null;
       this._faviconRequest = 0;
+      this._faviconLoadCancel = null;
       this._gBrowserWaitTimer = null;
       this._gBrowserWaitResolve = null;
       this._prefs = null;
-      this._historySidebarBrowser = null;
-      this._historySidebarFontObserver = null;
-      this._historySidebarFontValue = "";
+      this._configVariablesSheet = null;
+      this._placesSidebarBrowser = null;
+      this._placesSidebarFontObserver = null;
+      this._placesSidebarFontValue = "";
       this._destroyed = false;
       this._prefObserver = {
         observe: (_subject, _topic, data) => {
           if (data === "nebula-active-tab-glow") this.updateFaviconColor();
+          if (
+            data.startsWith("var-nebula-") ||
+            data === "nebula-ui-font-custom"
+          ) {
+            this.syncConfigVariables();
+          }
+          if (data === "nebula-ui-font-custom") this.syncPlacesSidebarFont();
         },
       };
 
       this.updateFaviconColor = this.updateFaviconColor.bind(this);
-      this._syncHistorySidebarFont = this.syncHistorySidebarFont.bind(this);
+      this._syncPlacesSidebarFont = this.syncPlacesSidebarFont.bind(this);
     }
 
     async init() {
@@ -189,24 +198,26 @@
       }
 
       // Supply Nebula's own defaults before Sine's settings are opened.
-      this.ensureRuntimePrefs();
+      await this.ensureRuntimePrefs();
+      if (this._destroyed) return;
+      this.syncConfigVariables();
 
-      // The History sidebar is a separate chrome document and cannot inherit
+      // The Places sidebars are separate chrome documents and cannot inherit
       // Sine's custom font variable from the browser window's root element.
-      this._historySidebarBrowser = document.getElementById("sidebar");
-      this._historySidebarBrowser?.addEventListener(
+      this._placesSidebarBrowser = document.getElementById("sidebar");
+      this._placesSidebarBrowser?.addEventListener(
         "load",
-        this._syncHistorySidebarFont,
+        this._syncPlacesSidebarFont,
         true,
       );
-      this._historySidebarFontObserver = new MutationObserver(
-        this._syncHistorySidebarFont,
+      this._placesSidebarFontObserver = new MutationObserver(
+        this._syncPlacesSidebarFont,
       );
-      this._historySidebarFontObserver.observe(this.root, {
+      this._placesSidebarFontObserver.observe(this.root, {
         attributes: true,
         attributeFilter: ["style"],
       });
-      this._syncHistorySidebarFont();
+      this._syncPlacesSidebarFont();
 
       // Compact mode is a root attribute. Observe only that attribute instead
       // of querying the whole browser for every DOM mutation.
@@ -239,6 +250,8 @@
           this._prefObserver,
           false,
         );
+        this._prefs.addObserver("var-nebula-", this._prefObserver);
+        this._prefs.addObserver("nebula-ui-font-custom", this._prefObserver);
       } catch (err) {
         Nebula.logger.warn(
           `⚠️ [Polyfill] Could not observe favicon glow preference: ${err}`,
@@ -267,67 +280,119 @@
       );
     }
 
-    /** Sine applies Nebula's string defaults only when its settings UI opens. */
-    ensureRuntimePrefs() {
+    /** Read the same manifest used by Cosine Mods; never replace saved choices. */
+    async ensureRuntimePrefs() {
       try {
-        const prefs = this._services().prefs;
-
-        // Same keys original Nebula writes when its settings panel is opened.
-        // Sine only applies string defaultValues during that parse, so a
-        // first-time install of this fork never created them otherwise.
-        const stringDefaults = {
-          "var-nebula-glass-blur": "32px",
-          "var-nebula-glass-saturation": "140%",
-          "var-nebula-color-glass-light": "rgba(255, 255, 255, 0.4)",
-          "var-nebula-color-glass-dark": "rgba(0, 0, 0, 0.4)",
-          "var-nebula-ui-tint-light": "rgba(255,255,255,0.2)",
-          "var-nebula-ui-tint-dark": "rgba(0,0,0,0.2)",
-          "var-nebula-website-tint-light": "rgba(255,255,255,0)",
-          "var-nebula-website-tint-dark": "rgba(0,0,0,0)",
-          "var-nebula-tabs-minimum-light": "rgba(255, 255, 255, 0.1)",
-          "var-nebula-tabs-minimum-dark": "rgba(0, 0, 0, 0.2)",
-          "var-nebula-tabs-default-light": "rgba(255,255,255,0.25)",
-          "var-nebula-tabs-default-dark": "rgba(0,0,0,0.35)",
-          "var-nebula-tabs-hover-light": "rgba(255,255,255,0.35)",
-          "var-nebula-tabs-hover-dark": "rgba(0,0,0,0.45)",
-          "var-nebula-tabs-selected-light": "rgba(255,255,255,0.45)",
-          "var-nebula-tabs-selected-dark": "rgba(0,0,0,0.55)",
-          "var-nebula-color-shadow-light": "rgba(255, 255, 255, 0.055)",
-          "var-nebula-color-shadow-dark": "rgba(0, 0, 0, 0.55)",
-          "var-nebula-border-radius": "13px",
-          "var-nebula-essentials-width": "60px",
-          "var-nebula-workspace-grayscale": "100%",
-        };
-        for (const [name, value] of Object.entries(stringDefaults)) {
-          if (!prefs.prefHasUserValue(name)) {
-            prefs.setStringPref(name, value);
-          }
-        }
-
+        const services = this._services();
+        const chromeDir = services.dirsvc.get("UChrm", Ci.nsIFile).path;
+        const config = await IOUtils.readJSON(
+          PathUtils.join(chromeDir, "sine-mods", "Nebula", "preferences.json"),
+        );
+        if (this._destroyed) return;
+        this._configPrefs = config.filter((entry) => entry.property);
+        const prefs = services.prefs;
         this._migrateUiFontPref(prefs);
+        const defaults = prefs.getDefaultBranch("");
+        for (const entry of this._configPrefs) {
+          // The window-control option belongs to Zen; retain its native default.
+          if (!/^(?:var-)?nebula-/.test(entry.property)) continue;
+          const value = entry.defaultValue;
+          if (typeof value === "boolean")
+            defaults.setBoolPref(entry.property, value);
+          else if (typeof value === "number")
+            defaults.setIntPref(entry.property, value);
+          else if (typeof value === "string")
+            defaults.setStringPref(entry.property, value);
+        }
       } catch (err) {
         Nebula.logger.warn(
-          `⚠️ [Polyfill] Could not apply runtime prefs: ${err}`,
+          `[Config] Could not load preference defaults: ${err}`,
         );
       }
     }
 
-    syncHistorySidebarFont() {
+    /** Validate editable CSS values without overwriting the user's saved input. */
+    configCssValue(entry) {
+      const value = this._services()
+        .prefs.getStringPref(entry.property, entry.defaultValue)
+        .trim();
+      let property = "color";
+      let candidate = value;
+      if (entry.property === "nebula-ui-font-custom") property = "font-family";
+      else if (entry.property.endsWith("glass-blur")) {
+        property = "backdrop-filter";
+        candidate = `blur(${value})`;
+      } else if (entry.property.endsWith("glass-saturation")) {
+        property = "backdrop-filter";
+        candidate = `saturate(${value})`;
+      } else if (entry.property.endsWith("border-radius"))
+        property = "border-radius";
+      else if (entry.property.endsWith("essentials-width")) property = "width";
+      else if (entry.property.endsWith("workspace-grayscale")) {
+        property = "filter";
+        candidate = `grayscale(${value})`;
+      }
+      if (value && CSS.supports(property, candidate)) return value;
+      return entry.property === "nebula-ui-font-custom"
+        ? "system-ui"
+        : entry.defaultValue;
+    }
+
+    /** Settings and Places are separate documents, so root variables must be bridged. */
+    syncConfigVariables() {
+      if (this._destroyed || !this._configPrefs) return;
+      try {
+        const services = this._services();
+        const declarations = this._configPrefs
+          .filter((entry) => entry.type === "string")
+          .map(
+            (entry) =>
+              `--${entry.property}: ${this.configCssValue(entry)} !important;`,
+          )
+          .join("\n");
+        const sheets = Cc[
+          "@mozilla.org/content/style-sheet-service;1"
+        ].getService(Ci.nsIStyleSheetService);
+        const css = `/* Nebula Nova window ${window.windowUtils.outerWindowID} */
+          @-moz-document url("chrome://browser/content/browser.xhtml"),
+            url("chrome://browser/content/places/bookmarksSidebar.xhtml"),
+            url("chrome://browser/content/places/historySidebar.xhtml"),
+            url-prefix("about:preferences") {
+            :root, :root#main-window { ${declarations} }
+          }`;
+        const uri = services.io.newURI(
+          `data:text/css;charset=utf-8,${encodeURIComponent(css)}`,
+        );
+        if (this._configVariablesSheet?.spec === uri.spec) return;
+        if (this._configVariablesSheet) {
+          sheets.unregisterSheet(this._configVariablesSheet, sheets.USER_SHEET);
+          this._configVariablesSheet = null;
+        }
+        sheets.loadAndRegisterSheet(uri, sheets.USER_SHEET);
+        this._configVariablesSheet = uri;
+      } catch (err) {
+        Nebula.logger.warn(`[Config] Could not sync visual variables: ${err}`);
+      }
+    }
+
+    syncPlacesSidebarFont() {
       if (this._destroyed) return;
 
       try {
-        const sidebarDocument = this._historySidebarBrowser?.contentDocument;
+        const sidebarDocument = this._placesSidebarBrowser?.contentDocument;
         const sidebarRoot = sidebarDocument?.documentElement;
         if (
           !sidebarRoot ||
-          sidebarDocument.documentURI !==
-            "chrome://browser/content/places/historySidebar.xhtml"
+          ![
+            "chrome://browser/content/places/historySidebar.xhtml",
+            "chrome://browser/content/places/bookmarksSidebar.xhtml",
+          ].includes(sidebarDocument.documentURI)
         ) {
           return;
         }
 
-        const fontFamily = getComputedStyle(this.root)
-          .getPropertyValue("--nebula-ui-font-custom")
+        const fontFamily = this._services()
+          .prefs.getStringPref("nebula-ui-font-custom", "")
           .trim();
         if (fontFamily) {
           if (
@@ -339,19 +404,19 @@
               fontFamily,
             );
           }
-          this._historySidebarFontValue = fontFamily;
-        } else if (this._historySidebarFontValue) {
+          this._placesSidebarFontValue = fontFamily;
+        } else if (this._placesSidebarFontValue) {
           if (
             sidebarRoot.style.getPropertyValue("--nebula-ui-font-custom") ===
-            this._historySidebarFontValue
+            this._placesSidebarFontValue
           ) {
             sidebarRoot.style.removeProperty("--nebula-ui-font-custom");
           }
-          this._historySidebarFontValue = "";
+          this._placesSidebarFontValue = "";
         }
       } catch (err) {
         Nebula.logger.warn(
-          `[Polyfill] Could not sync the History sidebar font: ${err}`,
+          `[Polyfill] Could not sync the Places sidebar font: ${err}`,
         );
       }
     }
@@ -391,13 +456,10 @@
       const newCustom = "nebula-ui-font-custom";
       if (prefs.getPrefType(oldCustom) === 32) {
         const value = prefs.getStringPref(oldCustom, "").trim();
-        if (value && prefs.getPrefType(newCustom) === 0) {
+        if (value && !prefs.prefHasUserValue(newCustom)) {
           prefs.setStringPref(newCustom, value);
         }
-        if (
-          value &&
-          !prefs.getBoolPref("nebula-ui-font-custom-enable", false)
-        ) {
+        if (value && !prefs.prefHasUserValue("nebula-ui-font-custom-enable")) {
           prefs.setBoolPref("nebula-ui-font-custom-enable", true);
         }
         prefs.clearUserPref(oldCustom);
@@ -424,7 +486,8 @@
 
       if (
         e?.type === "TabAttrModified" &&
-        !e.detail?.changed?.includes("image")
+        (e.target !== gBrowser.selectedTab ||
+          !e.detail?.changed?.includes("image"))
       )
         return;
 
@@ -439,6 +502,7 @@
       if (activeTabGlow !== 2) {
         this._faviconRequest++;
         if (this._faviconTimeout) clearTimeout(this._faviconTimeout);
+        this._faviconLoadCancel?.();
         this.root.style.removeProperty("--nebula-selected-favicon-color");
         return;
       }
@@ -447,27 +511,54 @@
       const iconUrl = tab?.getAttribute("image");
       const requestId = ++this._faviconRequest;
       if (this._faviconTimeout) clearTimeout(this._faviconTimeout);
+      this._faviconLoadCancel?.();
+      this.root.style.removeProperty("--nebula-selected-favicon-color");
       if (!iconUrl) {
-        this.root.style.removeProperty("--nebula-selected-favicon-color");
         return;
       }
 
-      // Debounce favicon decoding while the selected tab is changing.
+      // Sample the icon Zen already loaded, including remotely decoded SVGs.
+      // Reloading it with anonymous CORS can fail for internal favicon URLs.
       this._faviconTimeout = setTimeout(async () => {
         this._faviconTimeout = null;
         if (this._destroyed) return;
         try {
-          const img = new Image();
-          img.crossOrigin = "anonymous";
-          img.src = iconUrl;
-          await new Promise((resolve) => {
-            img.onload = resolve;
-            img.onerror = resolve;
-          });
+          const img = tab.iconImage || tab.querySelector(".tab-icon-image");
+          if (!img) throw new Error("Selected tab has no favicon image");
+          if (!img.complete || !img.naturalWidth) {
+            await new Promise((resolve, reject) => {
+              const finish = (error) => {
+                clearTimeout(timeout);
+                img.removeEventListener("load", loaded);
+                img.removeEventListener("error", failed);
+                if (this._faviconLoadCancel === cancel)
+                  this._faviconLoadCancel = null;
+                if (error) reject(error);
+                else resolve();
+              };
+              const loaded = () =>
+                finish(
+                  img.naturalWidth ? null : new Error("Favicon has no pixels"),
+                );
+              const failed = () => finish(new Error("Favicon failed to load"));
+              const cancel = () =>
+                finish(new Error("Favicon request cancelled"));
+              const timeout = setTimeout(
+                () => finish(new Error("Favicon load timed out")),
+                3000,
+              );
+              this._faviconLoadCancel = cancel;
+              img.addEventListener("load", loaded);
+              img.addEventListener("error", failed);
+              // A cached icon may finish between the first check and listeners.
+              if (img.complete) loaded();
+            });
+          }
 
           // A tab switch or favicon update may have happened while the image
           // was loading. Never let an old request paint a current-tab color.
           if (
+            this._destroyed ||
             requestId !== this._faviconRequest ||
             gBrowser.selectedTab !== tab ||
             tab.getAttribute("image") !== iconUrl
@@ -476,7 +567,10 @@
 
           const size = 16; // smaller canvas
           if (!this._faviconCanvas) {
-            this._faviconCanvas = document.createElement("canvas");
+            this._faviconCanvas = document.createElementNS(
+              "http://www.w3.org/1999/xhtml",
+              "canvas",
+            );
             this._faviconCanvas.width = size;
             this._faviconCanvas.height = size;
             this._faviconCtx = this._faviconCanvas.getContext("2d");
@@ -514,7 +608,8 @@
 
             if (!best || score > best.score)
               best = { ...c, score, brightness, hsl };
-            if (brightness > 0.5) {
+            // White highlights should not replace a darker logo color.
+            if (brightness > 0.5 && hsl.s > 0.15) {
               if (!brightCandidate || score > brightCandidate.score)
                 brightCandidate = { ...c, score, brightness, hsl };
             }
@@ -543,9 +638,10 @@
             this.root.style.removeProperty("--nebula-selected-favicon-color");
           }
         } catch (err) {
-          if (requestId === this._faviconRequest)
+          if (!this._destroyed && requestId === this._faviconRequest) {
             this.root.style.removeProperty("--nebula-selected-favicon-color");
-          Nebula.logger.warn(`[Polyfill] Favicon color unavailable: ${err}`);
+            Nebula.logger.warn(`[Polyfill] Favicon color unavailable: ${err}`);
+          }
         }
       }, 100);
     }
@@ -609,42 +705,63 @@
       this._destroyed = true;
       this.compactObserver?.disconnect();
       this.modeObserver?.disconnect();
-      this._historySidebarFontObserver?.disconnect();
-      this._historySidebarFontObserver = null;
-      this._historySidebarBrowser?.removeEventListener(
+      this._placesSidebarFontObserver?.disconnect();
+      this._placesSidebarFontObserver = null;
+      this._placesSidebarBrowser?.removeEventListener(
         "load",
-        this._syncHistorySidebarFont,
+        this._syncPlacesSidebarFont,
         true,
       );
       try {
-        const sidebarDocument = this._historySidebarBrowser?.contentDocument;
+        const sidebarDocument = this._placesSidebarBrowser?.contentDocument;
         const sidebarRoot = sidebarDocument?.documentElement;
         if (
           sidebarRoot &&
-          sidebarDocument.documentURI ===
-            "chrome://browser/content/places/historySidebar.xhtml" &&
+          [
+            "chrome://browser/content/places/historySidebar.xhtml",
+            "chrome://browser/content/places/bookmarksSidebar.xhtml",
+          ].includes(sidebarDocument.documentURI) &&
           sidebarRoot.style.getPropertyValue("--nebula-ui-font-custom") ===
-            this._historySidebarFontValue
+            this._placesSidebarFontValue
         ) {
           sidebarRoot.style.removeProperty("--nebula-ui-font-custom");
         }
       } catch {}
-      this._historySidebarBrowser = null;
-      this._historySidebarFontValue = "";
+      this._placesSidebarBrowser = null;
+      this._placesSidebarFontValue = "";
       this._gBrowserWaitResolve?.(false);
       this._gBrowserWaitResolve = null;
       if (this._gBrowserWaitTimer) clearTimeout(this._gBrowserWaitTimer);
       this._gBrowserWaitTimer = null;
       if (this._faviconTimeout) clearTimeout(this._faviconTimeout);
       this._faviconRequest++;
+      this._faviconLoadCancel?.();
 
       try {
         this._prefs?.removeObserver(
           "nebula-active-tab-glow",
           this._prefObserver,
         );
+        this._prefs?.removeObserver(
+          "nebula-ui-font-custom",
+          this._prefObserver,
+        );
       } catch {}
       this._prefs = null;
+
+      try {
+        this._services().prefs.removeObserver(
+          "var-nebula-",
+          this._prefObserver,
+        );
+        if (this._configVariablesSheet) {
+          const sheets = Cc[
+            "@mozilla.org/content/style-sheet-service;1"
+          ].getService(Ci.nsIStyleSheetService);
+          sheets.unregisterSheet(this._configVariablesSheet, sheets.USER_SHEET);
+        }
+      } catch {}
+      this._configVariablesSheet = null;
 
       this.root.removeAttribute("nebula-ui-font");
       this.root.style.removeProperty("--nebula-ui-font");
@@ -1793,12 +1910,97 @@
     }
   }
 
+  // ========== NebulaLibraryActionsModule ==========
+  class NebulaLibraryActionsModule {
+    init() {
+      this.footer = document.getElementById("zen-sidebar-foot-buttons");
+      if (!this.footer) return;
+      this.downloadsCommon = ChromeUtils.importESModule(
+        "moz-src:///browser/components/downloads/DownloadsCommon.sys.mjs",
+      ).DownloadsCommon;
+      this.observer = new MutationObserver(() => this.update());
+      this.observer.observe(this.footer, {
+        childList: true,
+        subtree: true,
+        characterData: true,
+        attributes: true,
+        attributeFilter: ["downloading"],
+      });
+      this.update();
+    }
+
+    update() {
+      const rows = this.footer.querySelectorAll(
+        ".zen-library-download-list-download",
+      );
+      for (const row of rows) {
+        let actions = row.querySelector(".nebula-library-actions");
+        if (!actions) {
+          actions = document.createXULElement("hbox");
+          actions.classList.add("nebula-library-actions");
+          for (const [action, label] of [["show", "Show in folder"]]) {
+            const button = document.createXULElement("toolbarbutton");
+            button.classList.add("toolbarbutton-1", "nebula-library-action");
+            button.setAttribute("data-nebula-download-action", action);
+            button.setAttribute("tooltiptext", label);
+            button.setAttribute("aria-label", label);
+            actions.appendChild(button);
+          }
+          // Keep the native row's open handler from also running.
+          actions.addEventListener("click", (event) => event.stopPropagation());
+          actions.addEventListener("command", (event) => {
+            event.stopPropagation();
+            const action = event.target.getAttribute(
+              "data-nebula-download-action",
+            );
+            const download = row.download;
+            if (!this.hasFile(download)) return;
+            try {
+              if (action === "show") {
+                const file = Cc["@mozilla.org/file/local;1"].createInstance(
+                  Ci.nsIFile,
+                );
+                file.initWithPath(download.target.path);
+                this.downloadsCommon.showDownloadedFile(file);
+              }
+            } catch (error) {
+              Nebula.logger.error(String(error));
+            }
+          });
+          row.appendChild(actions);
+        }
+        const download = row.download;
+        actions.hidden = !download?.stopped;
+        for (const button of actions.children) {
+          button.disabled = !this.hasFile(download);
+        }
+      }
+    }
+
+    hasFile(download) {
+      return !!(
+        download?.succeeded &&
+        !download.deleted &&
+        download.target?.exists &&
+        download.target.path
+      );
+    }
+
+    destroy() {
+      this.observer?.disconnect();
+      this.footer
+        ?.querySelectorAll(".nebula-library-actions")
+        .forEach((actions) => actions.remove());
+    }
+  }
+
   // Register Nebula Modules
   Nebula.register(NebulaPolyfillModule);
   Nebula.register(NebulaGradientSliderModule);
   Nebula.register(NebulaTitlebarBackgroundModule);
   Nebula.register(NebulaURLBarBackgroundModule);
   Nebula.register(NebulaMediaCoverArtModule);
+  Nebula.register(NebulaLibraryActionsModule);
   Nebula.register(NebulaMenuModule);
   Nebula.register(NebulaCtrlTabDualBackgroundModule);
 

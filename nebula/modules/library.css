@@ -1,0 +1,169 @@
+/* -------------------------- ZEN LIBRARY -------------------------- */
+
+:root {
+  /* A denser glass surface keeps file names legible over web pages/artwork. */
+  --nebula-library-surface: light-dark(
+    rgb(250 250 250 / 88%),
+    rgb(18 18 18 / 88%)
+  );
+  --nebula-library-text: light-dark(#1f1f1f, #f4f4f4);
+  --nebula-library-text-secondary: light-dark(#454545, #c6c6c6);
+  --nebula-library-hover: light-dark(rgb(0 0 0 / 6%), rgb(255 255 255 / 8%));
+  --nebula-library-shadow:
+    0 0 0 1px light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 10%)),
+    0 8px 24px rgb(0 0 0 / 18%);
+}
+
+zen-library,
+#zen-library-download-list {
+  background: var(--nebula-library-surface) !important;
+  color: var(--nebula-library-text) !important;
+  backdrop-filter: var(--nebula-glass) !important;
+  border-radius: var(--nebula-border-radius) !important;
+  box-shadow: var(--nebula-library-shadow) !important;
+}
+
+/* Keep Zen's badge and sidebar mask in time with the preview. */
+#zen-sidebar-foot-buttons,
+#TabsToolbar-customization-target {
+  --zen-library-open-duration: 150ms !important;
+}
+
+/* Keep the preview anchored to the footer, covering the player's space. */
+#zen-library-download-list {
+  /* Match the application menu's panel surface, rather than sidebar glass. */
+  background: var(--arrowpanel-background) !important;
+  color: var(--panel-text-color) !important;
+  backdrop-filter: none !important;
+  border: 1px solid
+    color-mix(in srgb, var(--panel-border-color) 30%, transparent) !important;
+  border-radius: var(--panel-border-radius) !important;
+  box-shadow: var(--panel-box-shadow) !important;
+  bottom: 100% !important;
+  left: 0;
+  right: auto;
+  width: min(440px, calc(100vw - 32px)) !important;
+  box-sizing: border-box;
+  padding: 6px !important;
+  gap: 2px !important;
+  opacity: 0;
+  transform: translateY(8px);
+  visibility: hidden !important;
+  pointer-events: none !important;
+  transition:
+    opacity 150ms ease-out,
+    transform 150ms ease-out,
+    visibility 0s 150ms !important;
+
+  #zen-sidebar-foot-buttons[zen-library-stack-open] & {
+    opacity: 1;
+    transform: translateY(0);
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transition-delay: 0s !important;
+  }
+}
+
+:root[zen-right-side="true"] #zen-library-download-list {
+  left: auto;
+  right: 0;
+}
+
+/* Preserve the player's layout so opening the preview never moves the tabs. */
+:root:has(
+    #zen-library-button:hover,
+    #zen-sidebar-foot-buttons:is(
+      [zen-library-stack-open],
+      [zen-library-stack-closing]
+    ),
+    zen-library[open]:hover
+  )
+  #zen-media-controls-toolbar {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+#zen-library-download-list .zen-library-download-list-download {
+  height: auto !important;
+  min-height: 52px;
+  border-radius: max(4px, calc(var(--nebula-border-radius) - 6px)) !important;
+  /* Animate the surface and content together, without Zen's row stagger. */
+  transform: none !important;
+  opacity: 1 !important;
+  transition: none !important;
+
+  &:hover {
+    background: var(--nebula-library-hover) !important;
+  }
+
+  & .zen-library-download-list-title-container {
+    display: flex !important;
+    gap: 2px;
+  }
+
+  & .zen-library-download-list-title {
+    display: -webkit-box !important;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal !important;
+    overflow-wrap: anywhere;
+    line-height: 1.2;
+  }
+
+  & .zen-library-download-badge {
+    flex-shrink: 0;
+    margin: auto 16px auto 6px !important;
+  }
+
+  & .zen-library-download-badge:not([downloading]) {
+    scale: 1.6;
+  }
+
+  &[downloading] .zen-library-download-action {
+    display: flex !important;
+  }
+
+  & .zen-library-download-action,
+  & .nebula-library-action {
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    padding: 0 !important;
+    margin: auto 0 auto 4px;
+    border-radius: 8px !important;
+    -moz-context-properties: fill;
+    fill: currentcolor;
+  }
+
+  & .nebula-library-actions {
+    align-items: center;
+    margin-inline-start: 4px;
+  }
+
+  & .nebula-library-action[data-nebula-download-action="show"] {
+    list-style-image: url("chrome://browser/skin/zen-icons/folder.svg");
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #zen-sidebar-foot-buttons,
+  #TabsToolbar-customization-target {
+    --zen-library-open-duration: 0s !important;
+  }
+
+  #zen-library-download-list {
+    transform: none;
+    transition: none !important;
+  }
+}
+
+.zen-library-download-list-title,
+.zen-library-row-title {
+  opacity: 1 !important;
+}
+
+.zen-library-download-list-subtitle,
+.zen-library-row-subtitle {
+  color: var(--nebula-library-text-secondary) !important;
+  opacity: 1 !important;
+}

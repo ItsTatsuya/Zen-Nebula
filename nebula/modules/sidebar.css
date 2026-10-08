@@ -74,6 +74,34 @@ html[nebula-collapsed-toolbar] {
   border-radius: var(--nebula-border-radius, 13px) !important;
 }
 
+/* Arc's acrylic approach: composite and blur the painted background, never
+ * the toolbox (its padding remains visible after the sidebar slides away).
+ * Keep the working non-transparent titlebar filter unchanged. */
+@media (-moz-pref("browser.tabs.allow_transparent_browser")) {
+  :root[zen-compact-mode="true"]:not([inDOMFullscreen="true"])
+    #navigator-toolbox:not([animate="true"]) {
+    backdrop-filter: none !important;
+
+    #titlebar {
+      backdrop-filter: none !important;
+
+      > :is(.zen-toolbar-background, .zen-browser-generic-background) {
+        background: var(--nebula-color-glass) !important;
+        backdrop-filter: var(--zen-backdrop-underlay, blur(0))
+          var(--nebula-glass) !important;
+        /* Confine the SVG underlay to the visible glass, excluding gaps. */
+        clip-path: inset(0 round var(--nebula-border-radius, 13px));
+        box-shadow: none !important;
+
+        &::before,
+        &::after {
+          background: transparent !important;
+        }
+      }
+    }
+  }
+}
+
 /* The History/Bookmarks panel needs a dense tint for readable text. */
 :root[zen-compact-mode="true"]:has(#sidebar-box:not([hidden])) #titlebar {
   background: color-mix(
@@ -278,10 +306,11 @@ scrollbox {
       }
     }
 
-    html:not([nebula-single-toolbar]) #PersonalToolbar {
+    #PersonalToolbar {
       position: absolute !important;
       z-index: 1 !important;
       opacity: 0 !important;
+      pointer-events: none !important;
       transform: translateY(-10px) !important;
       transition:
         opacity 200ms ease-out,
@@ -294,10 +323,10 @@ scrollbox {
     #PersonalToolbar:has(menupopup[open]),
     #PersonalToolbar:has(menu[open]),
     #PersonalToolbar:has(.bookmark-item[open]),
-    #nav-bar:hover + #PersonalToolbar,
     #PersonalToolbar:hover,
     #PersonalToolbar:focus-within {
       opacity: 1 !important;
+      transform: translateY(0) !important;
       pointer-events: auto !important;
       transition-delay: 0s !important;
     }

@@ -1,5 +1,7 @@
 # Nebula Nova
 
+Version **3.5.0**, maintained by **ItsTatsuya**.
+
 Fork of [Zen-Nebula](https://github.com/JustADumbPrsn/Zen-Nebula). A glass based theme for [Zen Browser](https://zen-browser.app/). Nebula Nova is installed and configured through [Sine](https://github.com/CosmoCreeper/Sine).
 
 ![Nebula Nova on the New Tab page](screenshots/base.png)
@@ -15,7 +17,7 @@ The Sine mod ID and on-disk folder are still `Nebula`, preserving existing insta
 
 ## Configure
 
-- **Nebula Glass Blur** and **Nebula Glass Saturation** control CSS blur on floating browser UI, including the compact sidebar, URL bar, find bar, and media player. Enter a CSS length such as `32px` for blur.
+- **Glass Blur** and **Glass Saturation** control CSS blur on floating browser UI, including the compact sidebar, URL bar, find bar, and media player. Enter a CSS length such as `32px` for blur.
 - **Show artwork behind the media player** is off by default. When enabled, **Media Player Background Style** starts with **Simple blur** for a diffuse background; **Thumbnail** shows a more recognizable image. Changes apply to an open media card without restarting Zen.
 - The other Sine controls adjust tab motion, hover glow, typography, colors, and layout. The preference defaults are in [`preferences.json`](preferences.json), with CSS fallbacks in [`nebula/config.css`](nebula/config.css).
 
@@ -36,3 +38,5 @@ The New Tab screenshots use the user's configured start page and wallpaper. A st
 Inspired by [Natsumi Browser](https://github.com/greeeen-dev/natsumi-browser), [Lacuna](https://github.com/Tanay-Kar/Lacuna), [My Internet](https://github.com/sameerasw/my-internet), [Pineapple Fried](https://github.com/TheBigWazz/Pineapple-Fried), [Advanced Tab Groups](https://github.com/TFFC-Anoms12/Advanced-Tab-Groups), and [NoGaps](https://github.com/Comp-Tech-Guy/No-Gaps).
 
 Nebula Nova is free to fork and adapt under the repository's [license](LICENSE). Please credit the project when sharing a derivative. Report reproducible issues in the repository's issue tracker.
+
+See the [configuration standard and full preference audit](docs/configuration.md).

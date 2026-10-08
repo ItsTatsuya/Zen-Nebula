@@ -68,7 +68,7 @@ tab[label$=".pdf"] .tab-label-container {
   /* Disable ONLY the gradient overlay (before) when glow pref = 1 or 2 AND tab is selected */
   @media (-moz-pref("nebula-active-tab-glow", 1)),
     (-moz-pref("nebula-active-tab-glow", 2)) {
-    .tabbrowser-tab[selected="true"][usercontextid] .tab-background::before {
+    .tabbrowser-tab[selected][usercontextid] .tab-background::before {
       display: none !important;
     }
   }
@@ -135,11 +135,11 @@ tab[label$=".pdf"] .tab-label-container {
 }
 
 /* Fade buttons in */
-.tabbrowser-tab[selected="true"] .tab-close-button,
-.tabbrowser-tab[visuallyselected="true"] .tab-close-button,
+.tabbrowser-tab[selected] .tab-close-button,
+.tabbrowser-tab[visuallyselected] .tab-close-button,
 .tabbrowser-tab:hover .tab-close-button,
-.tabbrowser-tab[selected="true"] .tab-reset-button,
-.tabbrowser-tab[visuallyselected="true"] .tab-reset-button,
+.tabbrowser-tab[selected] .tab-reset-button,
+.tabbrowser-tab[visuallyselected] .tab-reset-button,
 .tabbrowser-tab:hover .tab-reset-button {
   opacity: 0.4 !important;
 }
@@ -199,10 +199,7 @@ tab-group[split-view-group] .tab-group-container {
   }
 
   /* ----- Selected state ----- */
-  &:is([pinned], :not([pinned])):is(
-      [selected="true"],
-      [visuallyselected="true"]
-    )
+  &:is([pinned], :not([pinned])):is([selected], [visuallyselected])
     .tab-background {
     background-color: var(--nebula-color-selected) !important;
     box-shadow: 0 0 3px var(--nebula-color-shadow) !important;
@@ -239,8 +236,9 @@ tab-group[split-view-group] .tab-group-container {
 
 /* ------------------- Active Tab Glow ------------------- */
 
-.tabbrowser-tab[selected="true"]:not([multiselected="true"]),
-.tabbrowser-tab[visuallyselected="true"]:not([multiselected="true"]) {
+/* Zen uses boolean attributes whose present value can be an empty string. */
+.tabbrowser-tab[selected]:not([multiselected]),
+.tabbrowser-tab[visuallyselected]:not([multiselected]) {
   /* Exclude essentials tabs and multi selected tabs */
 
   @media (-moz-pref("nebula-active-tab-glow", 1)) {
@@ -287,15 +285,24 @@ tab-group[split-view-group] .tab-group-container {
     }
   }
 
-  /* Hide glow on hover */
-  &:hover .tab-background::after {
-    opacity: 0 !important;
+  @media (-moz-pref("nebula-active-tab-glow", 2)) {
+    /* Keep the favicon glow instead of replacing it with the generic
+     * hover gradient, which may be configured as monochrome. */
+    &:hover::before {
+      opacity: 0 !important;
+    }
+  }
+
+  @media not (-moz-pref("nebula-active-tab-glow", 2)) {
+    &:hover .tab-background::after {
+      opacity: 0 !important;
+    }
   }
 }
 
 /* ------------------- Multi Selected Tab Glow ------------------- */
 
-.tabbrowser-tab[multiselected="true"] .tab-background {
+.tabbrowser-tab[multiselected] .tab-background {
   position: relative !important;
   overflow: visible !important;
   background-color: var(--nebula-color-selected) !important;
@@ -305,7 +312,7 @@ tab-group[split-view-group] .tab-group-container {
     box-shadow 0.3s ease !important;
 }
 
-.tabbrowser-tab[multiselected="true"] .tab-background::after {
+.tabbrowser-tab[multiselected] .tab-background::after {
   content: "";
   position: absolute;
   inset: 3px;
@@ -334,7 +341,7 @@ tab-group[split-view-group] .tab-group-container {
 
 /* Collapsed toolbar state */
 html[nebula-collapsed-toolbar]
-  .tabbrowser-tab[multiselected="true"]
+  .tabbrowser-tab[multiselected]
   .tab-background::after {
   inset: 2px 6px;
   width: calc(100% - 12px);
@@ -343,13 +350,13 @@ html[nebula-collapsed-toolbar]
 
 /* Gradient Style Variations */
 @media (-moz-pref("nebula-glow-gradient", 0)) {
-  .tabbrowser-tab[multiselected="true"] .tab-background::after {
+  .tabbrowser-tab[multiselected] .tab-background::after {
     display: none;
   }
 }
 
 @media (-moz-pref("nebula-glow-gradient", 2)) {
-  .tabbrowser-tab[multiselected="true"] .tab-background::after {
+  .tabbrowser-tab[multiselected] .tab-background::after {
     background: linear-gradient(
       45deg,
       light-dark(#ddd, #fff),
@@ -364,7 +371,7 @@ html[nebula-collapsed-toolbar]
 }
 
 @media (-moz-pref("nebula-glow-gradient", 3)) {
-  .tabbrowser-tab[multiselected="true"] .tab-background::after {
+  .tabbrowser-tab[multiselected] .tab-background::after {
     background: linear-gradient(
       45deg,
       #ff8a00,

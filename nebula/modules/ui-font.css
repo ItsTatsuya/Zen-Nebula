@@ -135,6 +135,8 @@
     #PersonalToolbar,
     #urlbar,
     #sidebar-box,
+    zen-library,
+    zen-library *,
     #zen-essentials-container,
     #zen-workspaces-button,
     #customization-container,
@@ -161,9 +163,9 @@
   }
 }
 
-/* The Places history sidebar is its own chrome document, so the browser
+/* The Places sidebars are separate chrome documents, so the browser
  * window's selectors above cannot reach its tree rows or context menu. */
-@-moz-document url("chrome://browser/content/places/historySidebar.xhtml")
+@-moz-document url("chrome://browser/content/places/historySidebar.xhtml"), url("chrome://browser/content/places/bookmarksSidebar.xhtml")
 {
   @media (not (-moz-pref("nebula-ui-font", "browser"))) or (-moz-pref("nebula-ui-font-custom-enable")) {
     :root,

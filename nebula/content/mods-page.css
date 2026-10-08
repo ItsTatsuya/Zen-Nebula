@@ -1,0 +1,123 @@
+/* Sine uses the same concentric section/card geometry as native Settings. */
+@-moz-document url-prefix("about:preferences") {
+  :root {
+    --nebula-mods-radius: var(--nebula-settings-radius);
+    --nebula-mods-control-radius: var(--nebula-mods-radius);
+    --nebula-mods-marketplace-inset: 2px;
+    --nebula-mods-section-surface: light-dark(
+      rgb(255 255 255 / 28%),
+      rgb(0 0 0 / 25%)
+    );
+    --nebula-mods-card-surface: light-dark(
+      rgb(255 255 255 / 60%),
+      rgb(255 255 255 / 6%)
+    );
+    --nebula-mods-card-border: light-dark(
+      rgb(0 0 0 / 10%),
+      rgb(255 255 255 / 12%)
+    );
+  }
+
+  #sineInstalledGroup,
+  #sineInstallationGroup {
+    box-sizing: border-box !important;
+    padding: var(--nebula-settings-section-padding) !important;
+    background: var(--nebula-mods-section-surface) !important;
+    border: var(--nebula-settings-border-width) solid
+      var(--nebula-mods-card-border) !important;
+    border-radius: var(--nebula-settings-section-radius) !important;
+    corner-shape: round !important;
+  }
+
+  .sineItemPreferenceDialog {
+    border-radius: var(--nebula-mods-radius) !important;
+    corner-shape: round !important;
+  }
+
+  /* Config lists need their own opaque surface above the glass dialog.
+   * Native popup content paints --panel-background-color inside its shadow root. */
+  .sineItemPreferenceDialog menupopup.in-menulist {
+    --panel-background-color: light-dark(#f7f7fa, #25252b) !important;
+    --panel-text-color: light-dark(#15151a, #f4f4f6) !important;
+    --panel-border-color: var(--nebula-mods-card-border) !important;
+    --panel-border-radius: var(--nebula-mods-control-radius) !important;
+  }
+
+  .sineItemPreferenceDialog menupopup.in-menulist::part(content) {
+    background: var(--panel-background-color) !important;
+    color: var(--panel-text-color) !important;
+    border-radius: var(--panel-border-radius) !important;
+    backdrop-filter: none !important;
+  }
+
+  #sineInstallationHeader,
+  #sineInstalledHeader {
+    align-items: center !important;
+    gap: 12px;
+  }
+
+  #sineMarketplaceHeader h2,
+  #sineInstalledHeader h2 {
+    margin: 0 !important;
+  }
+
+  #sineInstallationList {
+    grid-template-columns: repeat(auto-fit, minmax(176px, 1fr)) !important;
+    gap: 12px !important;
+    padding: var(--nebula-mods-marketplace-inset) !important;
+    margin-block: 12px !important;
+  }
+
+  #sineModsList .sineItem,
+  #sineInstallationList .sineInstallationItem {
+    box-sizing: border-box !important;
+    padding: 14px !important;
+    background: var(--nebula-mods-card-surface) !important;
+    border: 1px solid var(--nebula-mods-card-border) !important;
+    border-radius: var(--nebula-mods-radius) !important;
+    corner-shape: round !important;
+    box-shadow: none !important;
+  }
+
+  #sineModsList .sineItem {
+    margin-bottom: 12px !important;
+  }
+
+  #sineInstallationList .sineInstallationItem {
+    /* The grid adds another 2px of inset inside the section's content edge. */
+    border-radius: max(
+      0px,
+      calc(var(--nebula-mods-radius) - var(--nebula-mods-marketplace-inset))
+    ) !important;
+  }
+
+  .sineMarketplaceItemHeader {
+    margin-bottom: 8px;
+  }
+
+  .sineMarketplaceItemTitle {
+    margin-block: 0 !important;
+    line-height: 1.35;
+  }
+
+  .sineMarketplaceItemDescription {
+    line-height: 1.4;
+  }
+
+  /* These controls have asymmetric margins and text between the card corners
+   * and their own edges, so they keep the independent control radius. Popups
+   * and dialogs are also separate surfaces, not inset children of the card. */
+  :is(#sineInstalledGroup, #sineInstallationGroup) :is(button, input, menulist),
+  .sineItemPreferenceDialog :is(button, input, menulist),
+  .sineCKSOption-input,
+  #navigation-container button {
+    border-radius: var(--nebula-mods-control-radius) !important;
+    corner-shape: round !important;
+  }
+
+  :is(#sineInstalledGroup, #sineInstallationGroup) button,
+  .sineItemPreferenceDialog button,
+  #navigation-container button {
+    appearance: none !important;
+  }
+}

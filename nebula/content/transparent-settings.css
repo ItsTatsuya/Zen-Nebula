@@ -3,12 +3,6 @@
   --zen-settings-secondary-background: transparent !important;
 }
 
-groupbox:not(#sineInstallationGroup:popover-open) {
-  /*   background: var(--zen-colors-tertiary) !important; */
-  background: light-dark(rgb(255 255 255 / 25%), rgb(0 0 0 / 35%)) !important;
-  border: none;
-}
-
 #preferences-root {
   background-color: transparent !important;
 }

@@ -44,7 +44,7 @@
   align-self: center !important;
   width: calc(100% - var(--zen-element-separation)) !important;
   margin-top: 8px !important;
-  height: 38px !important;
+  /* Zen measures the collapsed card and adds space for stacked players. */
   position: relative !important;
 }
 

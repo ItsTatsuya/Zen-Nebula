@@ -1,4 +1,7 @@
 /* content import */
+@import url("config.css");
 @import url("modules/ui-font.css");
 @import url("content/better-pdf.css");
 @import url("content/transparent-settings.css");
+@import url("content/settings-page.css");
+@import url("content/mods-page.css");

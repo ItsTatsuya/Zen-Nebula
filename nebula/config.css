@@ -1,14 +1,9 @@
-/* This is the config guide for Nebula Nova
-Here you can tweak the various settings like animations, features, etc. to your own preference 
-by changing the variables or adding preferences in about:config
-without searching through the code directly */
+/* Nebula Nova visual tokens. preferences.json owns editable defaults.
+ * --var-nebula-* values are supplied by Sine and validated by the core script.
+ * CSS fallbacks also support installations without the script. */
 
 :root {
-  /* ✨ Glass & Blur
-   * Fallbacks are required: Sine does not write preference defaultValues on
-   * install, so --var-nebula-* is unset until settings are opened. Without
-   * fallbacks these !important tokens become invalid and Zen's opaque
-   * backgrounds win (fresh fork install has no transparency). */
+  /* Glass */
   --nebula-glass: blur(var(--var-nebula-glass-blur, 32px))
     saturate(var(--var-nebula-glass-saturation, 140%)) !important;
   --nebula-color-glass: light-dark(
@@ -16,7 +11,7 @@ without searching through the code directly */
     var(--var-nebula-color-glass-dark, rgb(0 0 0 / 40%))
   ) !important;
 
-  /* 🖼️ Layout */
+  /* Layout */
   --nebula-border-radius: var(--var-nebula-border-radius, 13px) !important;
   --nebula-essentials-width: var(
     --var-nebula-essentials-width,
@@ -27,7 +22,7 @@ without searching through the code directly */
     100%
   ) !important;
 
-  /* 🎨 UI & Website Tint */
+  /* Tint */
   --nebula-ui-tint: light-dark(
     var(--var-nebula-ui-tint-light, rgb(255 255 255 / 20%)),
     var(--var-nebula-ui-tint-dark, rgb(0 0 0 / 20%))
@@ -37,7 +32,7 @@ without searching through the code directly */
     var(--var-nebula-website-tint-dark, rgb(0 0 0 / 0%))
   ) !important;
 
-  /* 🔮 Colors */
+  /* Tab colors and shadows */
   --nebula-color-min: light-dark(
     var(--var-nebula-tabs-minimum-light, rgb(255 255 255 / 10%)),
     var(--var-nebula-tabs-minimum-dark, rgb(0 0 0 / 20%))

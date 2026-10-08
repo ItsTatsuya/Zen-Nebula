@@ -4,19 +4,28 @@
     "name": "Nebula Nova",
     "description": "A glass-inspired theme for Zen Browser with customizable blur, animation, and media artwork.",
     "createdAt": "2025-05-31",
-    "updatedAt": "2026-10-01",
+    "updatedAt": "2026-10-08",
     "homepage": "https://github.com/ItsTatsuya/Zen-Nebula",
-    "version": "3.4.1",
-    "image": "https://raw.githubusercontent.com/ItsTatsuya/Zen-Nebula/main/screenshots/new-tab.jpg",
-    "style": { "chrome": "userChrome.css", "content": "userContent.css" },
+    "version": "3.5.0",
+    "image": "https://raw.githubusercontent.com/ItsTatsuya/Zen-Nebula/main/screenshots/base.png",
+    "style": {
+      "chrome": "userChrome.css",
+      "content": "userContent.css"
+    },
     "scripts": {
       "js/nebula.uc.js": {
+        "name": "Nebula Nova core",
+        "description": "Central script for Nebula Nova.",
         "include": ["chrome://browser/content/browser.xhtml"]
       }
     },
     "preferences": "preferences.json",
     "origin": "store",
     "no-updates": true,
-    "enabled": true
+    "enabled": true,
+    "author": "ItsTatsuya",
+    "readme": "https://raw.githubusercontent.com/ItsTatsuya/Zen-Nebula/main/README.md",
+    "tags": ["content", "chrome", "minimal"],
+    "fork": ["zen"]
   }
 }
