@@ -21,7 +21,6 @@ browser[transparent="true"] {
 
 /* Global overrides */
 :root {
-  --attention-dot-color: transparent !important;
   --zen-themed-toolbar-bg-transparent: transparent !important;
 }
 
@@ -158,7 +157,7 @@ browser[transparent="true"] {
 }
 
 #statuspanel-label {
-  border-radius: 9px !important;
+  border-radius: var(--nebula-radius-inner) !important;
   padding: 4px 12px !important;
   font-size: 12.5px !important;
   border: 1px solid var(--nebula-color) !important;
@@ -168,12 +167,6 @@ browser[transparent="true"] {
 }
 
 /* ------------------- MENU ANIMATIONS ------------------- */
-
-@media not (-moz-pref("nebula-disable-menu-animations")) {
-  :root {
-    --nebula-menu-animation: true;
-  }
-}
 
 /* Keyframes */
 @keyframes nebula-menu-item-enter {
@@ -194,27 +187,6 @@ browser[transparent="true"] {
   backface-visibility: hidden;
 }
 
-/* Keep the theme usable for people who request reduced motion. */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-delay: 0s !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    transition-delay: 0s !important;
-    scroll-behavior: auto !important;
-  }
-
-  /* URL-bar rows start hidden for their entrance animation. Reveal them when
-   * the animation is shortened/disabled by the reduced-motion preference. */
-  #urlbar-results .urlbarView-row {
-    opacity: 1 !important;
-    transform: none !important;
-  }
-}
-
 /* ------------------ Ctrl Tab Styling ------------------- */
 
 #nebula-ctrltab-background-below {
@@ -230,7 +202,7 @@ browser[transparent="true"] {
 #ctrlTab-panel {
   --panel-background: var(--nebula-color-glass) !important;
 
-  border-radius: calc(var(--nebula-border-radius) + 4px) !important;
+  border-radius: var(--nebula-radius-outer) !important;
   scale: 0.7;
   box-shadow: 0 4px 20px var(--nebula-color-shadow) !important;
 }

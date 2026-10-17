@@ -12,7 +12,20 @@
   ) !important;
 
   /* Layout */
+  /* Radius scale. Surfaces (tabs, cards, the URL bar, panels) use the
+   * configured radius. Controls nested in a surface subtract a 4px inset, and
+   * containers that pad surfaces by 2px add it, so nested corners stay
+   * concentric. Use these tokens instead of local offsets. */
   --nebula-border-radius: var(--var-nebula-border-radius, 13px) !important;
+  --nebula-radius-outer: calc(var(--nebula-border-radius) + 2px) !important;
+  --nebula-radius-inner: max(
+    4px,
+    calc(var(--nebula-border-radius) - 4px)
+  ) !important;
+  --nebula-radius-small: max(
+    3px,
+    calc(var(--nebula-border-radius) / 2)
+  ) !important;
   --nebula-essentials-width: var(
     --var-nebula-essentials-width,
     60px
@@ -53,4 +66,37 @@
     var(--var-nebula-color-shadow-light, rgb(255 255 255 / 5.5%)),
     var(--var-nebula-color-shadow-dark, rgb(0 0 0 / 55%))
   ) !important;
+}
+
+/* Route Firefox and Zen radius tokens through the Nebula scale so native
+ * widgets (menus, panels, toolbar buttons, folders, the media player) follow
+ * the UI corner radius setting. Elements that redefine a token locally are
+ * listed so the override lands where the value is read. */
+:root {
+  /* superellipse(1) is a circular corner, matching Nebula's round tabs, and
+   * it neutralises Zen's squircle multipliers on radius values. */
+  --zen-squircle-value: 1 !important;
+  --border-radius-xsmall: var(--nebula-radius-small) !important;
+  --border-radius-small: var(--nebula-radius-inner) !important;
+  --border-radius-medium: var(--nebula-border-radius) !important;
+  --border-radius-large: var(--nebula-radius-outer) !important;
+  --button-border-radius: var(--nebula-radius-inner) !important;
+  --tab-border-radius: var(--nebula-border-radius) !important;
+}
+
+:root,
+.toolbarbutton-1,
+.urlbar-page-action,
+.identity-box-button,
+#urlbar {
+  --toolbarbutton-border-radius: var(--nebula-radius-inner) !important;
+}
+
+:root,
+menupopup,
+panel {
+  --popup-border-radius: var(--nebula-border-radius) !important;
+  --panel-border-radius: var(--nebula-border-radius) !important;
+  --panel-menuitem-border-radius: var(--nebula-radius-inner) !important;
+  --menuitem-border-radius: var(--nebula-radius-inner) !important;
 }

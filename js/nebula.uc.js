@@ -2,7 +2,7 @@
 // @name           Nebula Nova
 // @description    Central engine for Nebula Nova with all modules
 // @author         ItsTatsuya
-// @version        3.5.0
+// @version        3.6.0
 // @include        main
 // @grant          none
 // ==/UserScript==
@@ -151,9 +151,6 @@
       this._gBrowserWaitResolve = null;
       this._prefs = null;
       this._configVariablesSheet = null;
-      this._placesSidebarBrowser = null;
-      this._placesSidebarFontObserver = null;
-      this._placesSidebarFontValue = "";
       this._destroyed = false;
       this._prefObserver = {
         observe: (_subject, _topic, data) => {
@@ -164,12 +161,11 @@
           ) {
             this.syncConfigVariables();
           }
-          if (data === "nebula-ui-font-custom") this.syncPlacesSidebarFont();
         },
       };
 
       this.updateFaviconColor = this.updateFaviconColor.bind(this);
-      this._syncPlacesSidebarFont = this.syncPlacesSidebarFont.bind(this);
+      this._locationListener = null;
     }
 
     async init() {
@@ -201,23 +197,7 @@
       await this.ensureRuntimePrefs();
       if (this._destroyed) return;
       this.syncConfigVariables();
-
-      // The Places sidebars are separate chrome documents and cannot inherit
-      // Sine's custom font variable from the browser window's root element.
-      this._placesSidebarBrowser = document.getElementById("sidebar");
-      this._placesSidebarBrowser?.addEventListener(
-        "load",
-        this._syncPlacesSidebarFont,
-        true,
-      );
-      this._placesSidebarFontObserver = new MutationObserver(
-        this._syncPlacesSidebarFont,
-      );
-      this._placesSidebarFontObserver.observe(this.root, {
-        attributes: true,
-        attributeFilter: ["style"],
-      });
-      this._syncPlacesSidebarFont();
+      this.registerPdfViewerSheet();
 
       // Compact mode is a root attribute. Observe only that attribute instead
       // of querying the whole browser for every DOM mutation.
@@ -269,7 +249,26 @@
       // Initial run
       this.updateFaviconColor();
 
+      // Tabbrowser also calls onLocationChange when the selected tab changes.
+      this._locationListener = {
+        onLocationChange: () => this.updateTransparentPage(),
+        QueryInterface: ChromeUtils.generateQI([
+          "nsIWebProgressListener",
+          "nsISupportsWeakReference",
+        ]),
+      };
+      gBrowser.addProgressListener(this._locationListener);
+      this.updateTransparentPage();
+
       Nebula.logger.log("✅ [Polyfill] Detection active.");
+    }
+
+    /** Nebula makes about: pages transparent; the sidebar glass needs an opaque floor there. */
+    updateTransparentPage() {
+      this.root.toggleAttribute(
+        "nebula-transparent-page",
+        !!gBrowser.currentURI?.schemeIs("about"),
+      );
     }
 
     _services() {
@@ -297,12 +296,18 @@
           // The window-control option belongs to Zen; retain its native default.
           if (!/^(?:var-)?nebula-/.test(entry.property)) continue;
           const value = entry.defaultValue;
-          if (typeof value === "boolean")
-            defaults.setBoolPref(entry.property, value);
-          else if (typeof value === "number")
-            defaults.setIntPref(entry.property, value);
-          else if (typeof value === "string")
-            defaults.setStringPref(entry.property, value);
+          try {
+            if (typeof value === "boolean")
+              defaults.setBoolPref(entry.property, value);
+            else if (typeof value === "number")
+              defaults.setIntPref(entry.property, value);
+            else if (typeof value === "string")
+              defaults.setStringPref(entry.property, value);
+          } catch (err) {
+            Nebula.logger.warn(
+              `[Config] Could not set default for ${entry.property}: ${err}`,
+            );
+          }
         }
       } catch (err) {
         Nebula.logger.warn(
@@ -350,15 +355,23 @@
               `--${entry.property}: ${this.configCssValue(entry)} !important;`,
           )
           .join("\n");
+        const customFont = this._configPrefs.find(
+          (entry) => entry.property === "nebula-ui-font-custom",
+        );
         const sheets = Cc[
           "@mozilla.org/content/style-sheet-service;1"
         ].getService(Ci.nsIStyleSheetService);
+        // pdf.js opens at the PDF's own URL, so its root is matched by the
+        // attribute better-pdf.css also guards on.
         const css = `/* Nebula Nova window ${window.windowUtils.outerWindowID} */
           @-moz-document url("chrome://browser/content/browser.xhtml"),
             url("chrome://browser/content/places/bookmarksSidebar.xhtml"),
             url("chrome://browser/content/places/historySidebar.xhtml"),
             url-prefix("about:preferences") {
             :root, :root#main-window { ${declarations} }
+          }
+          html[mozdisallowselectionprint] {
+            --nebula-ui-font-custom: ${customFont ? this.configCssValue(customFont) : "system-ui"} !important;
           }`;
         const uri = services.io.newURI(
           `data:text/css;charset=utf-8,${encodeURIComponent(css)}`,
@@ -375,49 +388,36 @@
       }
     }
 
-    syncPlacesSidebarFont() {
-      if (this._destroyed) return;
-
+    /**
+     * pdf.js runs in a web content process, where Firefox refuses Sine's
+     * userContent actor (it lacks safeForUntrustedWebProcess), so the PDF
+     * styles are registered globally instead. The sheet is shared by every
+     * window, so a closing window leaves it in place.
+     */
+    registerPdfViewerSheet() {
       try {
-        const sidebarDocument = this._placesSidebarBrowser?.contentDocument;
-        const sidebarRoot = sidebarDocument?.documentElement;
-        if (
-          !sidebarRoot ||
-          ![
-            "chrome://browser/content/places/historySidebar.xhtml",
-            "chrome://browser/content/places/bookmarksSidebar.xhtml",
-          ].includes(sidebarDocument.documentURI)
-        ) {
-          return;
-        }
-
-        const fontFamily = this._services()
-          .prefs.getStringPref("nebula-ui-font-custom", "")
-          .trim();
-        if (fontFamily) {
-          if (
-            sidebarRoot.style.getPropertyValue("--nebula-ui-font-custom") !==
-            fontFamily
-          ) {
-            sidebarRoot.style.setProperty(
-              "--nebula-ui-font-custom",
-              fontFamily,
-            );
-          }
-          this._placesSidebarFontValue = fontFamily;
-        } else if (this._placesSidebarFontValue) {
-          if (
-            sidebarRoot.style.getPropertyValue("--nebula-ui-font-custom") ===
-            this._placesSidebarFontValue
-          ) {
-            sidebarRoot.style.removeProperty("--nebula-ui-font-custom");
-          }
-          this._placesSidebarFontValue = "";
+        const services = this._services();
+        const chromeDir = services.dirsvc.get("UChrm", Ci.nsIFile).path;
+        const uri = services.io.newURI(
+          PathUtils.toFileURI(
+            PathUtils.join(
+              chromeDir,
+              "sine-mods",
+              "Nebula",
+              "nebula",
+              "content",
+              "better-pdf.css",
+            ),
+          ),
+        );
+        const sheets = Cc[
+          "@mozilla.org/content/style-sheet-service;1"
+        ].getService(Ci.nsIStyleSheetService);
+        if (!sheets.sheetRegistered(uri, sheets.USER_SHEET)) {
+          sheets.loadAndRegisterSheet(uri, sheets.USER_SHEET);
         }
       } catch (err) {
-        Nebula.logger.warn(
-          `[Polyfill] Could not sync the Places sidebar font: ${err}`,
-        );
+        Nebula.logger.warn(`[PDF] Could not register viewer styles: ${err}`);
       }
     }
 
@@ -704,31 +704,9 @@
     destroy() {
       this._destroyed = true;
       this.compactObserver?.disconnect();
+      this.compactObserver = null;
+      this.root.removeAttribute("nebula-compact-mode");
       this.modeObserver?.disconnect();
-      this._placesSidebarFontObserver?.disconnect();
-      this._placesSidebarFontObserver = null;
-      this._placesSidebarBrowser?.removeEventListener(
-        "load",
-        this._syncPlacesSidebarFont,
-        true,
-      );
-      try {
-        const sidebarDocument = this._placesSidebarBrowser?.contentDocument;
-        const sidebarRoot = sidebarDocument?.documentElement;
-        if (
-          sidebarRoot &&
-          [
-            "chrome://browser/content/places/historySidebar.xhtml",
-            "chrome://browser/content/places/bookmarksSidebar.xhtml",
-          ].includes(sidebarDocument.documentURI) &&
-          sidebarRoot.style.getPropertyValue("--nebula-ui-font-custom") ===
-            this._placesSidebarFontValue
-        ) {
-          sidebarRoot.style.removeProperty("--nebula-ui-font-custom");
-        }
-      } catch {}
-      this._placesSidebarBrowser = null;
-      this._placesSidebarFontValue = "";
       this._gBrowserWaitResolve?.(false);
       this._gBrowserWaitResolve = null;
       if (this._gBrowserWaitTimer) clearTimeout(this._gBrowserWaitTimer);
@@ -763,10 +741,7 @@
       } catch {}
       this._configVariablesSheet = null;
 
-      this.root.removeAttribute("nebula-ui-font");
-      this.root.style.removeProperty("--nebula-ui-font");
       this.root.style.removeProperty("--nebula-ui-font-custom");
-      this.root.style.removeProperty("--fontfamily-ui");
       this.root.style.removeProperty("--nebula-selected-favicon-color");
 
       if (window.gBrowser?.tabContainer) {
@@ -778,7 +753,11 @@
           "TabAttrModified",
           this.updateFaviconColor,
         );
+        if (this._locationListener)
+          gBrowser.removeProgressListener(this._locationListener);
+        this._locationListener = null;
       }
+      this.root.removeAttribute("nebula-transparent-page");
 
       this.root.removeAttribute("nebula-single-toolbar");
       this.root.removeAttribute("nebula-multi-toolbar");
@@ -825,14 +804,7 @@
     sync() {
       if (!this.gradientSlider) return;
       const val = +this.gradientSlider.value;
-      const isZero = val === 0;
-      if (isZero) {
-        this.root.style.setProperty("--nebula-gradient-opacity", "0");
-      } else {
-        this.root.style.removeProperty("--nebula-gradient-opacity");
-      }
-      this.root.toggleAttribute("nebula-zen-gradient-contrast-zero", isZero);
-      Nebula.logger.debug?.(`[GradientSlider] Sync → ${val}`);
+      this.root.toggleAttribute("nebula-zen-gradient-contrast-zero", val === 0);
     }
 
     _patchThemePicker() {
@@ -842,11 +814,15 @@
       if (!proto?.blendWithWhiteOverlay) return;
 
       // Save original
-      this._origMethods.set(proto, proto.blendWithWhiteOverlay);
+      const original = proto.blendWithWhiteOverlay;
+      this._origMethods.set(proto, original);
 
       const moduleInstance = this;
 
       proto.blendWithWhiteOverlay = function (baseColor, opacity) {
+        if (!moduleInstance._patched) {
+          return original.call(this, baseColor, opacity);
+        }
         const val = moduleInstance.gradientSlider
           ? Number(moduleInstance.gradientSlider.value)
           : opacity;
@@ -855,14 +831,13 @@
             return `rgba(${baseColor.join(",")},0)`;
           }
           if (typeof baseColor === "string" && baseColor.startsWith("rgb")) {
-            return baseColor.replace(/rgb(a)?\(([^)]+)\)/, "rgba($2, 0)");
+            const channels = baseColor.match(/-?\d*\.?\d+/g)?.slice(0, 3);
+            if (channels?.length === 3) return `rgba(${channels.join(",")},0)`;
           }
           return "rgba(0,0,0,0)";
         }
         // Call the original method with the correct context
-        return moduleInstance._origMethods
-          .get(proto)
-          .call(this, baseColor, opacity);
+        return original.call(this, baseColor, opacity);
       };
 
       this._patchedPrototype = proto;
@@ -888,179 +863,8 @@
         this._patchedPrototype = null;
       }
 
-      this.root.style.removeProperty("--nebula-gradient-opacity");
       this.root.removeAttribute("nebula-zen-gradient-contrast-zero");
       Nebula.logger.log("🧹 [GradientSlider] Destroyed");
-    }
-  }
-
-  // ========== NebulaTitlebarBackgroundModule ==========
-  class NebulaTitlebarBackgroundModule {
-    constructor() {
-      this.root = document.documentElement;
-      this.browser = document.getElementById("browser");
-      this.titlebar = document.getElementById("titlebar");
-      this.overlay = null;
-      this.lastRect = {};
-      this.lastVisible = false;
-      this.animationFrameId = null;
-
-      this.update = this.update.bind(this);
-      this.scheduleUpdate = this.scheduleUpdate.bind(this);
-      this._compactCallback = this._compactCallback.bind(this);
-      this.resizeObserver = null;
-      this.rootObserver = null;
-    }
-
-    init() {
-      if (!this.browser || !this.titlebar) {
-        Nebula.logger.warn(
-          "⚠️ [TitlebarBackground] Required elements not found.",
-        );
-        return;
-      }
-
-      this.overlay = document.createElement("div");
-      this.overlay.id = "Nebula-titlebar-background";
-      Object.assign(this.overlay.style, {
-        position: "absolute",
-        display: "none",
-      });
-      this.browser.appendChild(this.overlay);
-
-      this.resizeObserver = new ResizeObserver(this.scheduleUpdate);
-      this.resizeObserver.observe(this.titlebar);
-      this.resizeObserver.observe(this.browser);
-      window.addEventListener("resize", this.scheduleUpdate);
-      this.titlebar.addEventListener("transitionrun", this.scheduleUpdate);
-      this.titlebar.addEventListener("transitionend", this.scheduleUpdate);
-      this.rootObserver = new MutationObserver(this.scheduleUpdate);
-      this.rootObserver.observe(this.root, {
-        attributes: true,
-        attributeFilter: [
-          "nebula-compact-mode",
-          "zen-sidebar-expanded",
-          "zen-right-side",
-          "zen-single-toolbar",
-        ],
-      });
-
-      window.gZenCompactModeManager?.addEventListener?.(this._compactCallback);
-
-      if (this.root.hasAttribute("nebula-compact-mode")) {
-        this.startLiveTracking();
-      }
-
-      Nebula.logger.log("✅ [TitlebarBackground] Tracking initialized.");
-    }
-
-    _compactCallback() {
-      const isCompact = this.root.hasAttribute("nebula-compact-mode");
-      if (isCompact) {
-        this.startLiveTracking();
-      } else {
-        this.stopLiveTracking();
-        this.hideOverlay();
-      }
-    }
-
-    scheduleUpdate() {
-      if (this.animationFrameId !== null) return;
-      this.animationFrameId = requestAnimationFrame(() => {
-        this.animationFrameId = null;
-        this.update();
-      });
-    }
-
-    update() {
-      const isCompact = this.root.hasAttribute("nebula-compact-mode");
-
-      if (!isCompact) {
-        this.stopLiveTracking();
-        this.hideOverlay();
-        return;
-      }
-
-      const rect = this.titlebar.getBoundingClientRect();
-      const style = getComputedStyle(this.titlebar);
-
-      const isVisible =
-        rect.width > 5 &&
-        rect.height > 5 &&
-        style.display !== "none" &&
-        style.visibility !== "hidden" &&
-        rect.bottom > 0 &&
-        rect.top < window.innerHeight;
-
-      const changed =
-        rect.top !== this.lastRect.top ||
-        rect.left !== this.lastRect.left ||
-        rect.width !== this.lastRect.width ||
-        rect.height !== this.lastRect.height;
-
-      if (!changed && this.lastVisible === isVisible) {
-        return;
-      }
-
-      this.lastRect = {
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-      };
-
-      if (isVisible) {
-        Object.assign(this.overlay.style, {
-          top: `${rect.top + window.scrollY}px`,
-          left: `${rect.left + window.scrollX}px`,
-          width: `${rect.width}px`,
-          height: `${rect.height}px`,
-          display: "block",
-        });
-
-        if (!this.lastVisible) {
-          this.overlay.classList.add("visible");
-          this.lastVisible = true;
-        }
-      } else {
-        this.hideOverlay();
-      }
-    }
-
-    hideOverlay() {
-      if (this.overlay) {
-        this.overlay.classList.remove("visible");
-        this.overlay.style.display = "none";
-      }
-      this.lastVisible = false;
-    }
-
-    startLiveTracking() {
-      this.stopLiveTracking();
-      this.scheduleUpdate();
-    }
-
-    stopLiveTracking() {
-      if (this.animationFrameId !== null) {
-        cancelAnimationFrame(this.animationFrameId);
-        this.animationFrameId = null;
-      }
-    }
-
-    destroy() {
-      window.gZenCompactModeManager?.removeEventListener?.(
-        this._compactCallback,
-      );
-      window.removeEventListener("resize", this.scheduleUpdate);
-      this.titlebar?.removeEventListener("transitionrun", this.scheduleUpdate);
-      this.titlebar?.removeEventListener("transitionend", this.scheduleUpdate);
-      this.resizeObserver?.disconnect();
-      this.rootObserver?.disconnect();
-      this.stopLiveTracking();
-      this.hideOverlay();
-      this.overlay?.remove();
-      this.overlay = null;
-      Nebula.logger.log("🧹 [TitlebarBackground] Destroyed.");
     }
   }
 
@@ -1082,6 +886,8 @@
     }
 
     init() {
+      this.browser ??= document.getElementById("browser");
+      this.urlbar ??= document.getElementById("urlbar");
       if (!this.browser || !this.urlbar) {
         Nebula.logger.warn(
           "⚠️ [URLBarBackground] Required elements not found.",
@@ -1273,14 +1079,13 @@
 
       const manager = window.gZenMediaController;
       this.toolbar = document.querySelector("#zen-media-controls-toolbar");
-      this.originalActivateMediaControls = manager.activateMediaControls;
+      const original = manager.activateMediaControls;
+      this.originalActivateMediaControls = original;
       this.patchedActivateMediaControls = (controller, browser) => {
+        // Another mod may have wrapped this patch; stay inert after destroy().
+        if (this._destroyed) return original.call(manager, controller, browser);
         const existingCards = new Set(this._getCards());
-        const result = this.originalActivateMediaControls.call(
-          manager,
-          controller,
-          browser,
-        );
+        const result = original.call(manager, controller, browser);
         const newCard = this._getCards().find(
           (card) =>
             !existingCards.has(card) && !card.hasAttribute("media-sharing"),
@@ -1552,6 +1357,9 @@
 
       this.observers = new Map();
       this._menuTimers = new Map();
+      this._listening = false;
+      this._prefs = null;
+      this._prefObserver = { observe: () => this._syncPref() };
 
       // Bind methods
       this.handlePopupShowing = this.handlePopupShowing.bind(this);
@@ -1559,6 +1367,35 @@
     }
 
     init() {
+      try {
+        this._prefs =
+          globalThis.Services?.prefs ||
+          ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs")
+            .Services.prefs;
+        this._prefs.addObserver(
+          "nebula-disable-menu-animations",
+          this._prefObserver,
+        );
+      } catch (err) {
+        Nebula.logger.warn(
+          `⚠️ [MenuModule] Could not observe settings: ${err}`,
+        );
+      }
+      this._syncPref();
+    }
+
+    // Popup listeners and observers exist only while animations are enabled.
+    _syncPref() {
+      const disabled =
+        this._prefs?.getBoolPref("nebula-disable-menu-animations", false) ??
+        false;
+      if (disabled) this.stop();
+      else this.start();
+    }
+
+    start() {
+      if (this._listening) return;
+      this._listening = true;
       document.addEventListener("popupshowing", this.handlePopupShowing, true);
       document.addEventListener("popuphidden", this.handlePopupHidden, true);
       document.addEventListener("ViewShowing", this.handlePopupShowing, true);
@@ -1605,40 +1442,28 @@
         }
       }
 
-      // Filter visible elements efficiently
-      return flattenedItems.filter((item) => {
-        if (!item || item.nodeType !== 1) return false;
-        const rect = item.getBoundingClientRect();
-        return (
-          rect.width > 0 &&
-          rect.height > 0 &&
-          getComputedStyle(item).display !== "none"
-        );
-      });
+      // Popup contents have no layout yet at popupshowing/ViewShowing, so
+      // rects are 0 there. Filter on attributes; this also avoids a layout
+      // flush per item.
+      return flattenedItems.filter(
+        (item) =>
+          item?.nodeType === 1 &&
+          !item.hasAttribute("hidden") &&
+          !item.hasAttribute("collapsed"),
+      );
     }
 
     animateMenuItems(popup) {
       if (!popup) return;
       const items = this.getMenuItems(popup);
-      const shouldAnimate =
-        getComputedStyle(this.root)
-          .getPropertyValue("--nebula-menu-animation")
-          .trim() === "true";
       // Batch DOM updates for animation
       window.requestAnimationFrame(() => {
         if (!popup.isConnected) return;
-        items.forEach((item, index) =>
-          this.animateItem(item, index, shouldAnimate),
-        );
+        items.forEach((item, index) => this.animateItem(item, index));
       });
     }
 
-    animateItem(item, index, shouldAnimate) {
-      item.classList.remove("nebula-menu-anim");
-      item.style.animationDelay = "";
-
-      if (!shouldAnimate) return;
-
+    animateItem(item, index) {
       const delay = Math.min(index * this.STAGGER_DELAY, this.MAX_DELAY);
       item.style.animationDelay = `${delay}ms`;
       item.classList.add("nebula-menu-anim");
@@ -1683,6 +1508,12 @@
       if (this.observers.has(popup)) return;
 
       const observer = new MutationObserver((mutations) => {
+        // A cancelled show never fires popuphidden; release the observer here.
+        if (popup.state === "closed") {
+          observer.disconnect();
+          this.observers.delete(popup);
+          return;
+        }
         if (
           mutations.some(
             (m) =>
@@ -1706,7 +1537,7 @@
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ["hidden", "collapsed", "disabled"],
+        attributeFilter: ["hidden", "collapsed"],
       });
 
       this.observers.set(popup, observer);
@@ -1733,6 +1564,8 @@
     }
 
     stop() {
+      if (!this._listening) return;
+      this._listening = false;
       document.removeEventListener(
         "popupshowing",
         this.handlePopupShowing,
@@ -1760,6 +1593,13 @@
     }
 
     destroy() {
+      try {
+        this._prefs?.removeObserver(
+          "nebula-disable-menu-animations",
+          this._prefObserver,
+        );
+      } catch {}
+      this._prefs = null;
       this.stop();
       Nebula.logger.log("🧹 [MenuModule] Module destroyed.");
     }
@@ -1784,6 +1624,8 @@
     }
 
     init() {
+      this.browser ??= document.getElementById("browser");
+      this.panel ??= document.getElementById("ctrlTab-panel");
       if (!this.browser || !this.panel) {
         return Nebula.logger.warn(
           "⚠️ [CtrlTabDualBackground] Required elements not found.",
@@ -1918,7 +1760,13 @@
       this.downloadsCommon = ChromeUtils.importESModule(
         "moz-src:///browser/components/downloads/DownloadsCommon.sys.mjs",
       ).DownloadsCommon;
-      this.observer = new MutationObserver(() => this.update());
+      this.observer = new MutationObserver(() => {
+        if (this._updateFrame) return;
+        this._updateFrame = requestAnimationFrame(() => {
+          this._updateFrame = null;
+          this.update();
+        });
+      });
       this.observer.observe(this.footer, {
         childList: true,
         subtree: true,
@@ -1988,21 +1836,77 @@
 
     destroy() {
       this.observer?.disconnect();
+      if (this._updateFrame) cancelAnimationFrame(this._updateFrame);
+      this._updateFrame = null;
       this.footer
         ?.querySelectorAll(".nebula-library-actions")
         .forEach((actions) => actions.remove());
     }
   }
 
+  // ========== NebulaSearchSuggestionsModule ==========
+  /**
+   * Hidden suggestion rows would still take arrow-key selection, so the
+   * toggle switches Firefox's own address bar search suggestions instead.
+   */
+  class NebulaSearchSuggestionsModule {
+    static PREF = "nebula-hide-search-suggestions";
+    static FIREFOX_PREF = "browser.urlbar.suggest.searches";
+
+    constructor() {
+      this._prefs = null;
+      this._prefObserver = { observe: () => this._sync(true) };
+    }
+
+    init() {
+      try {
+        this._prefs =
+          globalThis.Services?.prefs ||
+          ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs")
+            .Services.prefs;
+        this._prefs.addObserver(
+          NebulaSearchSuggestionsModule.PREF,
+          this._prefObserver,
+        );
+      } catch (err) {
+        Nebula.logger.warn(
+          `⚠️ [SearchSuggestions] Could not observe settings: ${err}`,
+        );
+      }
+      this._sync(false);
+    }
+
+    // Startup only enforces the toggle; turning it off restores Firefox's value.
+    _sync(changed) {
+      if (!this._prefs) return;
+      const { PREF, FIREFOX_PREF } = NebulaSearchSuggestionsModule;
+      if (this._prefs.getBoolPref(PREF, false)) {
+        this._prefs.setBoolPref(FIREFOX_PREF, false);
+      } else if (changed) {
+        this._prefs.clearUserPref(FIREFOX_PREF);
+      }
+    }
+
+    destroy() {
+      try {
+        this._prefs?.removeObserver(
+          NebulaSearchSuggestionsModule.PREF,
+          this._prefObserver,
+        );
+      } catch {}
+      this._prefs = null;
+    }
+  }
+
   // Register Nebula Modules
   Nebula.register(NebulaPolyfillModule);
   Nebula.register(NebulaGradientSliderModule);
-  Nebula.register(NebulaTitlebarBackgroundModule);
   Nebula.register(NebulaURLBarBackgroundModule);
   Nebula.register(NebulaMediaCoverArtModule);
   Nebula.register(NebulaLibraryActionsModule);
   Nebula.register(NebulaMenuModule);
   Nebula.register(NebulaCtrlTabDualBackgroundModule);
+  Nebula.register(NebulaSearchSuggestionsModule);
 
   // Start the core
   Nebula.init();

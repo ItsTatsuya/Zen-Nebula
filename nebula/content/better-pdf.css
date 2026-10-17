@@ -1,4 +1,8 @@
 /* ------------ BETTER PDF VIEWER ----------- */
+/* Font stacks for the theme's font preference. Pages outside pdf.js only
+ * receive the unused variables. */
+@import url("../modules/ui-font.css");
+
 html[mozdisallowselectionprint] {
   --pdf-js-pseudobg-bg: #dedede;
   @media (prefers-color-scheme: dark) {
@@ -25,17 +29,6 @@ html[mozdisallowselectionprint] #mainContainer::before {
   z-index: -10000 !important;
 }
 
-html[mozdisallowselectionprint] .sidebarOpen::before {
-  content: "";
-  background: var(--pdf-js-pseudobg-bg) !important;
-  position: absolute !important;
-  height: calc(100% - 62px) !important;
-  left: 5px !important;
-  top: auto !important;
-  bottom: 5px !important;
-  border-radius: 10px !important;
-  width: var(--sidebar-width) !important;
-}
 /* ---- Config ----- */
 
 /*
@@ -52,9 +45,6 @@ html[mozdisallowselectionprint] * {
   --glass-blur-radius: 20px;
   --glass-shadow-size: 10px;
   --glass-shadow-opacity: 65%;
-
-  /* Follow chrome UI font when set; otherwise the viewer default */
-  --custom-font: var(--nebula-ui-font, inherit);
 
   /* pdf.js */
   --pdfjs-topbar-max-width: 750px; /* use calc(100% - 10px) for max width */
@@ -116,29 +106,6 @@ html[mozdisallowselectionprint] * {
       var(--natsumi-primary-color) 80%,
       white 20%
     );
-
-    @media (-moz-pref("zen.theme.color-prefs.colorful")) {
-      --natsumi-colors-primary: color-mix(
-        in srgb,
-        var(--natsumi-primary-color) 50%,
-        black 50%
-      );
-      --natsumi-colors-secondary: color-mix(
-        in srgb,
-        var(--natsumi-primary-color) 40%,
-        black 60%
-      );
-      --natsumi-colors-tertiary: color-mix(
-        in srgb,
-        var(--natsumi-primary-color) 15%,
-        black 85%
-      );
-      --natsumi-colors-primary-foreground: color-mix(
-        in srgb,
-        var(--natsumi-primary-color) 80%,
-        white 20%
-      );
-    }
   }
 
   /* Glass effect */
@@ -150,6 +117,11 @@ html[mozdisallowselectionprint] * {
   --natsumi-glass-blur-radius: var(--glass-blur-radius, 10px);
   --natsumi-glass-shadow-size: var(--glass-shadow-size, 10px);
   --natsumi-glass-shadow-opacity: var(--glass-shadow-opacity, 75%);
+  --natsumi-glass-shadow-color: color-mix(
+    in srgb,
+    black var(--natsumi-glass-shadow-opacity),
+    transparent
+  );
 
   /* pdf.js */
   --natsumi-pdfjs-topbar-max-width: var(--pdfjs-topbar-max-width, 750px);
@@ -194,12 +166,19 @@ html[mozdisallowselectionprint] * {
 }
 
 html[mozdisallowselectionprint] {
-  &:has(head link:nth-of-type(1)[href^="resource://pdf.js"]) {
+  &:has(head link[href^="resource://pdf.js"]) {
     --natsumi-colors-border: color-mix(
       in srgb,
       var(--natsumi-colors-secondary) 80%,
       black 20%
     );
+    /* Toolbar tint, a little translucent so panel blur shows through. */
+    --nebula-pdf-panel-background:
+      linear-gradient(
+        var(--natsumi-glass-background),
+        var(--natsumi-glass-background)
+      ),
+      color-mix(in srgb, var(--pdf-js-pseudobg-bg) 70%, transparent);
     --toolbarbutton-active-background: rgb(255 255 255 / 90%);
     --toolbarbutton-hover-background: color-mix(
       in srgb,
@@ -226,8 +205,11 @@ html[mozdisallowselectionprint] {
       }
     }
 
+    /* Run under the floating toolbar, but keep pdf.js shifting the start
+     * edge clear of the open views manager. */
     #viewerContainer {
-      inset: 0 !important;
+      inset-block: 0 !important;
+      inset-inline-end: 0 !important;
       background: transparent !important;
 
       #viewer > .page:first-of-type,
@@ -240,24 +222,34 @@ html[mozdisallowselectionprint] {
     .toolbar {
       width: 100%;
       height: 10px;
-
-      @media (-moz-pref("natsumi.theme.compact-marginless")) {
-        height: 15px;
-      }
     }
 
-    #toolbarContainer,
-    #sidebarContainer {
-      background: var(--natsumi-glass-background) !important;
-      backdrop-filter: blur(5px);
-      border-radius: 10px;
+    /* The toolbar glass lives on a pseudo-element: a backdrop-filter or
+     * transform on #toolbarContainer would make it the backdrop root of the
+     * views manager and dropdowns nested in it, so their blur could never
+     * reach the page. */
+    #toolbarContainer::before,
+    #viewsManager,
+    #toolbarContainer .doorHangerRight {
+      backdrop-filter: blur(var(--natsumi-glass-blur-radius)) !important;
+      border-radius: 10px !important;
+    }
+
+    #toolbarContainer::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: -1;
+      background: var(--natsumi-glass-background);
+      pointer-events: none;
     }
 
     #toolbarContainer {
       position: absolute !important;
       top: 5px !important;
-      left: 50% !important;
-      transform: translate(-50%, 0);
+      inset-inline: 0 !important;
+      margin-inline: auto !important;
+      background: transparent !important;
       width: calc(100% - 10px) !important;
       max-width: min(
         var(--natsumi-pdfjs-topbar-max-width),
@@ -267,33 +259,47 @@ html[mozdisallowselectionprint] {
       padding-top: 5px !important;
       padding-bottom: 5px !important;
       height: calc(var(--toolbar-height) + 10px) !important;
-      border: 1px solid rgb(20 20 20 / 20%) !important;
+      border: 1px solid rgb(20 20 20 / 6%) !important;
       box-shadow: 0 0 var(--natsumi-glass-shadow-size)
         var(--natsumi-glass-shadow-color) !important;
       animation: pdfjs-appear 0.3s ease;
       overflow: hidden !important;
 
       @media (prefers-color-scheme: dark) {
-        border-color: rgb(235 235 235 / 30%) !important;
+        border-color: rgb(235 235 235 / 8%) !important;
       }
 
       &:has(#loadingBar.hidden) {
         overflow: visible !important;
       }
 
+      /* Inset every edge by the 5px block padding so buttons sit concentric
+       * in the 10px toolbar corners; pdf.js adds 8px more at the start. */
+      padding-inline: 5px !important;
+
       #toolbarViewer {
-        padding-left: 5px;
-        padding-right: 5px;
+        padding-inline: 0;
+
+        #toolbarViewerLeft {
+          margin-inline-start: 0 !important;
+        }
+
+        /* Firefox hides the find button in favour of its own find bar, but
+         * leaves its 30px container and spacer as gaps in the toolbar. */
+        .toolbarButtonSpacer,
+        .toolbarButtonWithContainer:has(> #viewFindButton.hidden) {
+          display: none !important;
+        }
       }
 
       .doorHangerRight {
         padding: 5px !important;
         top: 40px !important;
-        right: -7px !important;
-        background: var(--natsumi-glass-background) !important;
-        backdrop-filter: blur(5px);
+        /* Line up with the toolbar edge: 5px padding and 1px border. */
+        right: -6px !important;
+        background: var(--nebula-pdf-panel-background) !important;
         border-radius: 10px !important;
-        border: 1px solid rgb(20 20 20 / 20%) !important;
+        border: 1px solid rgb(20 20 20 / 6%) !important;
         box-shadow: 0 0 var(--natsumi-glass-shadow-size)
           var(--natsumi-glass-shadow-color) !important;
         animation: secondary-appear 0.3s ease;
@@ -303,7 +309,7 @@ html[mozdisallowselectionprint] {
         }
 
         @media (prefers-color-scheme: dark) {
-          border-color: rgb(235 235 235 / 30%) !important;
+          border-color: rgb(235 235 235 / 8%) !important;
         }
 
         &::before,
@@ -332,34 +338,42 @@ html[mozdisallowselectionprint] {
       }
     }
 
-    #sidebarContainer {
-      height: calc(100% - 62px) !important;
-      left: -5px !important;
-      top: auto !important;
-      bottom: 5px !important;
-      opacity: 0 !important;
-      transition:
-        left 0.2s ease,
-        opacity 0.2s ease,
-        filter 0.2s ease !important;
-      border: 1px solid rgb(20 20 20 / 20%) !important;
+    /* pdf.js nests the views manager in the toolbar, which Nebula centres,
+     * so pin it to the window start edge below the toolbar. 100% is the
+     * toolbar padding box. */
+    #viewsManager {
+      /* Header and Manage buttons, as flat as the toolbar's. */
+      --button-bg: transparent !important;
+      --button-no-bg: transparent !important;
+      --button-hover-bg: var(--toolbarbutton-hover-background) !important;
+      --button-active-bg: var(--toolbarbutton-active-background) !important;
+      --button-border-radius: 5px !important;
+      --views-button-border-color: transparent !important;
+      --status-actions-bg: transparent !important;
+
+      inset-inline-start: calc(
+        (100% - 100vw) / 2 - var(--viewsManager-width, var(--sidebar-width)) -
+          1px
+      ) !important;
+      height: calc(
+        100vh - 100% - 6px - 2 * var(--sidebar-block-padding)
+      ) !important;
+      background: var(--nebula-pdf-panel-background) !important;
+      border-radius: 10px !important;
+      border: 1px solid rgb(20 20 20 / 6%) !important;
       box-shadow: 0 0 var(--natsumi-glass-shadow-size)
         var(--natsumi-glass-shadow-color) !important;
-      filter: blur(0);
 
       @media (prefers-color-scheme: dark) {
-        border-color: rgb(235 235 235 / 30%) !important;
+        border-color: rgb(235 235 235 / 8%) !important;
       }
 
-      #toolbarSidebar {
+      #viewsManagerHeader {
         background: transparent !important;
         box-shadow: none !important;
-        padding: 5px !important;
-        height: calc(var(--toolbar-height) + 10px) !important;
       }
 
-      #sidebarContent {
-        margin-top: 10px !important;
+      #viewsManagerContent {
         box-shadow: none !important;
       }
 
@@ -386,34 +400,42 @@ html[mozdisallowselectionprint] {
           }
         }
       }
+    }
 
-      .thumbnail {
-        margin-bottom: 22px !important;
-        transition: border-color 0.2s ease;
+    #outerContainer.viewsManagerOpen #viewsManager {
+      inset-inline-start: calc(8px + (100% - 100vw) / 2) !important;
+    }
 
-        &::after {
-          content: attr(data-page-number);
-          display: block;
-          color: black;
-          width: 100%;
-          margin-top: 8px;
-          text-align: center;
-
-          @media (prefers-color-scheme: dark) {
-            color: white;
-          }
-        }
+    /* The theme's UI font, applied as ui-font.css does in the chrome. Page
+     * text and its selectable text layer keep the PDF's own fonts. */
+    @media (not (-moz-pref("nebula-ui-font", "browser"))) or (-moz-pref("nebula-ui-font-custom-enable")) {
+      :is(#toolbarContainer, #viewsManager, #dialogContainer),
+      :is(#toolbarContainer, #viewsManager, #dialogContainer) * {
+        font-family: var(--nebula-ui-font) !important;
+        font-weight: var(--nebula-ui-font-weight, 400) !important;
       }
     }
 
-    #outerContainer.sidebarOpen #sidebarContainer {
-      left: 5px !important;
-      opacity: 1 !important;
-      filter: blur(0);
+    /* Menus in the views manager header (view picker, Manage). pdf.js reads
+     * these tokens; 10px corners minus the 5px menu padding for items. */
+    .popupMenu {
+      --menu-bg: var(--nebula-pdf-panel-background) !important;
+      --menu-backdrop-filter: blur(var(--natsumi-glass-blur-radius)) !important;
+      --menu-border-color: rgb(20 20 20 / 6%) !important;
+      --menu-box-shadow: 0 0 var(--natsumi-glass-shadow-size)
+        var(--natsumi-glass-shadow-color) !important;
+      --menuitem-border-radius: 5px !important;
+      --menuitem-hover-bg: var(--toolbarbutton-hover-background) !important;
+
+      border-radius: 10px !important;
+
+      @media (prefers-color-scheme: dark) {
+        --menu-border-color: rgb(235 235 235 / 8%) !important;
+      }
     }
 
     #scaleSelectContainer {
-      border-radius: 4px !important;
+      border-radius: 5px !important;
       overflow: hidden !important;
 
       select {
@@ -422,11 +444,19 @@ html[mozdisallowselectionprint] {
         @media (prefers-color-scheme: dark) {
           background-color: #363636 !important;
         }
+
+        /* Firefox paints the open list from these styles. A background on
+         * each option draws every row as its own pill over the select's
+         * colour; transparent options give one even list. */
+        > option {
+          background: transparent !important;
+          color: inherit !important;
+        }
       }
     }
 
     #pageNumber {
-      border-radius: 4px !important;
+      border-radius: 5px !important;
       overflow: hidden !important;
       background-color: #fff !important;
       border-color: var(--natsumi-colors-border) !important;
@@ -455,8 +485,9 @@ html[mozdisallowselectionprint] {
       }
     }
 
+    /* 10px toolbar radius minus its 5px inset. */
     .toolbarButton {
-      border-radius: 6px !important;
+      border-radius: 5px !important;
       transition: background-color 0.2s ease;
 
       &:hover {
@@ -480,12 +511,12 @@ html[mozdisallowselectionprint] {
       background: var(--natsumi-glass-background) !important;
       backdrop-filter: blur(5px);
       border-radius: 10px !important;
-      border: 1px solid rgb(20 20 20 / 20%) !important;
+      border: 1px solid rgb(20 20 20 / 6%) !important;
       box-shadow: 0 0 var(--natsumi-glass-shadow-size)
         var(--natsumi-glass-shadow-color) !important;
 
       @media (prefers-color-scheme: dark) {
-        border-color: rgb(235 235 235 / 30%) !important;
+        border-color: rgb(235 235 235 / 8%) !important;
       }
 
       &:is([open]) {
@@ -518,7 +549,7 @@ html[mozdisallowselectionprint] {
         }
 
         &:hover,
-        &:has(.toolbarButton:not(#sidebarToggleButton)[aria-expanded="true"]),
+        &:has(.toolbarButton[aria-expanded="true"]),
         &:has(input:focus),
         &:has(select:focus) {
           height: 52px;
@@ -533,7 +564,7 @@ html[mozdisallowselectionprint] {
       }
 
       @media (-moz-pref("natsumi.pdfjs.compact-dynamic")) {
-        .toolbar:has(#sidebarToggleButton[aria-expanded="true"]) {
+        .toolbar:has(#viewsManagerToggleButton[aria-expanded="true"]) {
           height: 52px;
 
           #toolbarContainer {
@@ -544,7 +575,7 @@ html[mozdisallowselectionprint] {
           }
         }
 
-        &:has(#sidebarToggleButton:not([aria-expanded="true"])) {
+        &:has(#viewsManagerToggleButton:not([aria-expanded="true"])) {
           #viewer > .page:first-of-type,
           #viewer .spread:first-of-type .page {
             margin-top: 0 !important;
@@ -578,7 +609,7 @@ html[mozdisallowselectionprint] {
       mask-image: url("chrome://browser/skin/zen-icons/plus.svg") !important;
     }
 
-    #sidebarToggleButton::before {
+    #viewsManagerToggleButton::before {
       mask-image: url("chrome://browser/skin/zen-icons/sidebar.svg") !important;
     }
 
@@ -678,36 +709,15 @@ html[mozdisallowselectionprint] {
     }
 
     #secondaryToolbarToggleButton::before {
-      mask-image: url("chrome://browser/skin/zen-icons/arrow-right.svg") !important;
-    }
-
-    /* Sidebar buttons */
-
-    #viewThumbnail::before {
-      mask-image: url("resource://pdf.js/web/images/toolbarButton-viewThumbnail.svg") !important;
-    }
-
-    #viewOutline::before {
-      mask-image: url("resource://pdf.js/web/images/toolbarButton-viewOutline.svg") !important;
-    }
-
-    #viewAttachments::before {
-      mask-image: url("resource://pdf.js/web/images/toolbarButton-viewAttachments.svg") !important;
-    }
-
-    #viewLayers::before {
-      mask-image: url("resource://pdf.js/web/images/toolbarButton-viewLayers.svg") !important;
-    }
-
-    #currentOutlineItem::before {
-      mask-image: url("resource://pdf.js/web/images/toolbarButton-currentOutlineItem.svg") !important;
+      mask-image: url("chrome://browser/skin/zen-icons/menu.svg") !important;
+      transform: none !important;
     }
 
     /* Checked buttons */
 
     #secondaryToolbarButtonContainer
       .toolbarButton[aria-checked="true"]::before {
-      mask-image: url("chrome://browser/skin/zen-icons/checkmark.svg") !important;
+      mask-image: url("resource://pdf.js/web/images/checkmark.svg") !important;
     }
   }
 }
@@ -733,23 +743,14 @@ html[mozdisallowselectionprint] * {
   }
 }
 
-/* PDF-only reduced-motion override. The content stylesheet is imported for
+/* PDF-only reduced-motion override. js/nebula.uc.js registers this sheet for
  * every page, so keep this guard tied to the PDF viewer root. */
 @media (prefers-reduced-motion: reduce) {
-  html[mozdisallowselectionprint]:has(
-      head link:nth-of-type(1)[href^="resource://pdf.js"]
-    ),
-  html[mozdisallowselectionprint]:has(
-      head link:nth-of-type(1)[href^="resource://pdf.js"]
-    )
-    *,
-  html[mozdisallowselectionprint]:has(
-      head link:nth-of-type(1)[href^="resource://pdf.js"]
-    )
+  html[mozdisallowselectionprint]:has(head link[href^="resource://pdf.js"]),
+  html[mozdisallowselectionprint]:has(head link[href^="resource://pdf.js"]) *,
+  html[mozdisallowselectionprint]:has(head link[href^="resource://pdf.js"])
     *::before,
-  html[mozdisallowselectionprint]:has(
-      head link:nth-of-type(1)[href^="resource://pdf.js"]
-    )
+  html[mozdisallowselectionprint]:has(head link[href^="resource://pdf.js"])
     *::after {
     animation: none !important;
     animation-delay: 0s !important;

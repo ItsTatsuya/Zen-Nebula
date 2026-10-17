@@ -4,7 +4,7 @@
   position: absolute;
   z-index: -10;
   pointer-events: none;
-  border-radius: 15px;
+  border-radius: var(--nebula-border-radius);
   opacity: 0;
   background-color: light-dark(rgb(200 200 200 / 100%), rgb(30 30 30 / 100%));
   display: none;
@@ -34,7 +34,7 @@
 
 /* When URL bar is open - smooth visual effect */
 #urlbar[open] .urlbar-background {
-  border-radius: 15px !important;
+  border-radius: var(--nebula-border-radius) !important;
   background: light-dark(rgb(255 255 255 / 85%), rgb(0 0 0 / 40%)) !important;
   outline: none !important;
   scale: 1.01 !important;
@@ -42,7 +42,7 @@
 
 #urlbar[open] {
   box-shadow: 0 20px 40px var(--nebula-color-shadow);
-  border-radius: 15px !important;
+  border-radius: var(--nebula-border-radius) !important;
   overflow: hidden !important;
   backdrop-filter: var(--nebula-glass) !important;
   animation: fade-in 0.2s ease-in !important;
@@ -71,7 +71,7 @@
 
 /* Rounded corners for all rows */
 .urlbarView-row {
-  border-radius: 12px !important;
+  border-radius: var(--nebula-radius-inner) !important;
 }
 
 /* Remove favicon background when row is selected */
@@ -92,21 +92,22 @@
   color: light-dark(rgb(90 90 90 / 100%), rgb(145 145 145 / 100%)) !important;
 }
 
+/* The light selected row is dark grey, so its URL needs light text. */
+.urlbarView-row[selected] .urlbarView-url {
+  color: light-dark(
+    rgb(235 235 235 / 100%),
+    rgb(145 145 145 / 100%)
+  ) !important;
+}
+
 #identity-icon-box {
   background: none !important;
 }
 
 #urlbar-zoom-button {
-  border-radius: calc(var(--nebula-border-radius) - 5px) !important;
+  border-radius: var(--nebula-radius-inner) !important;
   background-color: var(--nebula-color) !important;
 }
-
-/* Center text in URL bar */
-/* #urlbar .urlbar-input,
-.urlbar-input-container {
-    text-align: center !important;
-    position: relative;
-} */
 
 /* ------------------ Links Animation ------------------ */
 
@@ -259,7 +260,8 @@
   );
   background-size: 300% 100%;
   background-repeat: repeat-x;
-  animation: urlbar-gradient 8s linear infinite;
+  /* Only advance the gradient while a row shows it (on hover). */
+  animation: urlbar-gradient 8s linear infinite paused;
   opacity: 0;
   filter: blur(20px) brightness(1) contrast(120%);
   transition: opacity 0.5s ease-in-out;
@@ -287,7 +289,6 @@
       light-dark(#ddd, #fff)
     );
     background-size: 300% 100%;
-    animation: urlbar-gradient 8s linear infinite;
     filter: blur(20px) brightness(1);
   }
 }
@@ -304,7 +305,6 @@
       #ff8a00
     );
     background-size: 300% 100%;
-    animation: urlbar-gradient 8s linear infinite;
     filter: blur(20px) brightness(1);
   }
 }
@@ -312,6 +312,7 @@
 /* Smooth opacity transition on hover */
 #urlbar[open] #urlbar-results > *:hover::before {
   opacity: 0.81;
+  animation-play-state: running;
 }
 
 @keyframes urlbar-gradient {

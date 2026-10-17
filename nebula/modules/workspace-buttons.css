@@ -20,7 +20,7 @@
 
 button.zen-workspace-creation-profile,
 .zen-current-workspace-indicator toolbarbutton > .toolbarbutton-icon {
-  border-radius: calc(var(--nebula-border-radius) - 4px) !important;
+  border-radius: var(--nebula-radius-inner) !important;
 }
 
 .zen-workspace-creation-buttons button {
@@ -66,7 +66,7 @@ button.zen-workspace-creation-profile,
   container-type: initial !important;
   width: auto !important;
   padding: 3px !important;
-  border-radius: calc(var(--nebula-border-radius) - 2px) !important;
+  border-radius: var(--nebula-border-radius) !important;
   transition:
     box-shadow 0.3s ease,
     background-color 0.3s ease;
@@ -141,7 +141,7 @@ button.zen-workspace-creation-profile,
   }
 
   #zen-workspaces-button .subviewbutton:active {
-    background-color: var(--toolbarbutton-active-background) !important;
+    background-color: var(--toolbarbutton-background-color-active) !important;
   }
 
   #zen-workspaces-button .subviewbutton[active] {
@@ -175,7 +175,7 @@ button.zen-workspace-creation-profile,
     align-items: center !important;
     justify-content: center !important;
     height: 40px !important;
-    border-radius: 12px !important;
+    border-radius: var(--nebula-border-radius) !important;
     font-size: 1.25em !important;
     transform: scale(1) !important;
     transform-origin: bottom center !important;

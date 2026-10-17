@@ -1,6 +1,6 @@
 # Nebula Nova configuration
 
-Nebula Nova 3.5.0 is maintained by ItsTatsuya.
+Nebula Nova 3.6.0 is maintained by ItsTatsuya.
 
 `preferences.json` is the source for labels, types, defaults and choices. The core script reads that same file at startup. `nebula/config.css` defines the visual tokens and fallback values for CSS-only use. Keep preference keys stable so installed users retain their choices.
 
@@ -12,6 +12,7 @@ Nebula Nova 3.5.0 is maintained by ItsTatsuya.
 - Use paired light/dark colors, CSS lengths for sizes, and percentages for saturation/grayscale.
 - Add a consumer and update the audit whenever adding an option. Run `bun run check:config` and `bun run lint`.
 - Settings corners follow [concentric radius geometry](https://interactively.info/article/perfect-nested-rounded-corners): keep the configured radius on cards, and add the section's `16px` padding plus `1px` border to its outer radius. Subtract the marketplace grid's extra `2px` inset from its card radius. Native joined rows subtract their border width; previews subtract their actual inset, clamped at zero. Independent controls, dialogs and surfaces with unequal or wide insets keep their own radius. Preserve native pane widths and spacing.
+- Browser chrome corners use the scale in `nebula/config.css`. Surfaces such as tabs, cards, the URL bar, panels and the media player use `--nebula-border-radius`. Controls nested in a surface use `--nebula-radius-inner` (radius minus `4px`, at least `4px`). Containers that pad surfaces by `2px`, such as folders and split-view groups, use `--nebula-radius-outer`. Tiny badges use `--nebula-radius-small`. Do not write local offsets such as `calc(var(--nebula-border-radius) - 3px)`. The same file maps Firefox and Zen radius tokens onto this scale and sets `--zen-squircle-value: 1`, so native widgets follow the setting with round corners.
 
 ## Behavior and limits
 
@@ -26,7 +27,7 @@ Nebula Nova 3.5.0 is maintained by ItsTatsuya.
 
 ## Preference audit
 
-All 47 fields have explicit typed defaults and consumers. The automated audit checks dropdown variants, metadata, saved-value preservation, runtime defaults and CSS variable registration. GPU blur and native widget appearance still require a live Zen visual check.
+All 48 fields have explicit typed defaults and consumers. The automated audit checks that each field has a code consumer outside comments and a row in this table, dropdown variants, metadata, saved-value preservation, runtime defaults and CSS variable registration. GPU blur and native widget appearance still require a live Zen visual check.
 
 | Group             | Preference                                         | Default                        | Consumer                                                                                             |
 | ----------------- | -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------- |
@@ -62,7 +63,7 @@ All 47 fields have explicit typed defaults and consumers. The automated audit ch
 | Behavior          | `nebula-tab-switch-animation`                      | `1`                            | `nebula/modules/tab-animations.css`                                                                  |
 | Behavior          | `nebula-tab-loading-animation`                     | `1`                            | `nebula/modules/tab-animations.css`                                                                  |
 | Behavior          | `nebula-urlbar-animation`                          | `1`                            | `nebula/modules/urlbar.css`                                                                          |
-| Behavior          | `nebula-disable-menu-animations`                   | `false`                        | `nebula/modules/general-ui.css`                                                                      |
+| Behavior          | `nebula-disable-menu-animations`                   | `false`                        | `nebula/modules/general-ui.css`, `js/nebula.uc.js`                                                   |
 | Behavior          | `nebula-glow-gradient`                             | `1`                            | `nebula/modules/pinned-extensions.css`, `nebula/modules/tab-styles.css`, `nebula/modules/urlbar.css` |
 | Behavior          | `nebula-active-tab-glow`                           | `0`                            | `nebula/modules/tab-styles.css`, `js/nebula.uc.js`                                                   |
 | Behavior          | `nebula-bookmarks-autohide`                        | `0`                            | `nebula/modules/sidebar.css`                                                                         |
@@ -76,8 +77,21 @@ All 47 fields have explicit typed defaults and consumers. The automated audit ch
 | Optional features | `nebula-essentials-gray-icons`                     | `false`                        | `nebula/modules/essentials.css`                                                                      |
 | Optional features | `nebula-folder-styling`                            | `false`                        | `nebula/modules/tab-folders.css`                                                                     |
 | Optional features | `nebula-turn-off-zen-menu-icon`                    | `false`                        | `nebula/modules/topbar-buttons.css`                                                                  |
+| Optional features | `nebula-hide-search-suggestions`                   | `false`                        | `js/nebula.uc.js`                                                                                    |
 | Optional features | `nebula-pinned-extensions-mod`                     | `false`                        | `nebula/modules/pinned-extensions.css`                                                               |
+
+## Advanced `about:config` options
+
+These Picture-in-Picture options have no Sine control. Set them as booleans in `about:config`; they are not part of the preference audit above. `nebula/modules/better-pip.css` reads them. `bun run check:config` fails if CSS reads a `nebula` preference that is in neither table.
+
+| Preference                        | Effect                                                                             |
+| --------------------------------- | ---------------------------------------------------------------------------------- |
+| `nebula.pip.disabled`             | Turns off Nebula's Picture-in-Picture styling entirely.                            |
+| `nebula.pip.rounded`              | Rounds the Picture-in-Picture window corners on Windows and macOS (not Linux).     |
+| `nebula.pip.tinted-haze`          | Tints the haze background and controls with the primary color.                     |
+| `nebula.pip.native-border-radius` | Keeps the native window radius and tightens the control margins on narrow windows. |
+| `nebula.theme.force-dark-shadows` | Darkens the Picture-in-Picture control shadow color toward black.                  |
 
 ## Transparent sidebar reference
 
-The transparent-browser path uses the background-layer placement illustrated by [Arc 2.0](https://github.com/YashjitPal/Arc-2.0/blob/main/modules/chrome/sidebar.css), with Nebula’s blur, tint and radius. Zen’s native SVG underlay is confined to the visible background rather than the toolbox padding. The flag-off titlebar blur is retained.
+The transparent-browser path uses the background-layer placement illustrated by [Arc 2.0](https://github.com/YashjitPal/Arc-2.0/blob/main/modules/chrome/sidebar.css), with Nebula’s blur, tint and radius. While an `about:` page (which Nebula makes transparent) is selected, `nebula/filters/glass-underlay.svg` supplies an opaque floor and the blur in one SVG filter, because Gecko skips CSS filter functions after a `url()` filter. Other pages use Nebula’s CSS blur alone. The library panel uses the same filter on those pages. The flag-off titlebar blur is retained.

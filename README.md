@@ -1,6 +1,6 @@
 # Nebula Nova
 
-Version **3.5.0**, maintained by **ItsTatsuya**.
+Version **3.6.0**, maintained by **ItsTatsuya**.
 
 Fork of [Zen-Nebula](https://github.com/JustADumbPrsn/Zen-Nebula). A glass based theme for [Zen Browser](https://zen-browser.app/). Nebula Nova is installed and configured through [Sine](https://github.com/CosmoCreeper/Sine).
 

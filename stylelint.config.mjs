@@ -25,6 +25,7 @@ export default {
         ignoreTypes: [
           "tab",
           "tab-group",
+          "printpreview-pagination",
           "zen-folder",
           "zen-library",
           "toolbarbutton",

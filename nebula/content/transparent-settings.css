@@ -1,10 +1,19 @@
-:root {
-  --zen-colors-tertiary: transparent !important;
-  --zen-settings-secondary-background: transparent !important;
-}
+/* Settings page (about:settings is an alias of about:preferences). */
+@-moz-document url-prefix("about:preferences"), url-prefix("about:settings") {
+  :root {
+    --zen-colors-tertiary: transparent !important;
+    --zen-settings-secondary-background: transparent !important;
+  }
 
-#preferences-root {
-  background-color: transparent !important;
+  #preferences-root {
+    background-color: transparent !important;
+  }
+
+  /* Fixes the transparent dialogs. */
+  .dialogFrame {
+    background: var(--zen-dialog-background);
+    border-radius: 8px;
+  }
 }
 
 /* ---------------- Transparent backgrounds for all about: pages ---------------- */
@@ -45,8 +54,8 @@
     transition: opacity 0.3s ease-in-out;
   }
 
-  .top-sites-list:hover,
-  .personalizeButtonWrapper:hover {
+  .top-sites-list:is(:hover, :focus-within),
+  .personalizeButtonWrapper:is(:hover, :focus-within) {
     opacity: 1 !important;
   }
 
@@ -57,42 +66,13 @@
   }
 }
 
-/*
-@-moz-document url(about:home), url(about:newtab), url(about:privatebrowsing) {
-  body, .App{
-    background-color: transparent !important;
-  }
-
-  .top-sites-list, .personalizeButtonWrapper{
-    opacity: 0 !important;
-    transition: opacity 0.3s ease-in-out;
-
-    &:hover{
-      opacity: 1 !important;
+/* Honor reduced motion on Nebula's about: page transitions. */
+@media (prefers-reduced-motion: reduce) {
+  @-moz-document url-prefix("about:") {
+    .top-sites-list,
+    .personalizeButtonWrapper,
+    #search-container {
+      transition: none !important;
     }
   }
-  
-  .App > div:nth-child(2), .wallpaper{
-    display: none !important;
-  }
-}
-
-@-moz-document url(about:config), url(about:support), url(about:profiles) {
-  html, #toolbar{
-    background-color: transparent !important;
-  }
-  tr, table{
-    background-color: transparent !important;
-    border: none !important;
-  }
-  tr{
-    outline: solid 1px #88888822 !important;
-  }
-}
-*/
-
-/* Fixes the transparent dialogs. */
-.dialogFrame {
-  background: var(--zen-dialog-background);
-  border-radius: 8px;
 }

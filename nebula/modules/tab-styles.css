@@ -20,7 +20,7 @@ tab[label$=".pdf"] .tab-label-container {
   #userContext-icons {
     width: 5px !important;
     height: 14px !important;
-    border-radius: 3px !important;
+    border-radius: var(--nebula-radius-small) !important;
     margin: 0 6px 0 2px !important;
     opacity: 0.8 !important;
     background-color: var(--identity-tab-color) !important;
@@ -128,7 +128,7 @@ tab[label$=".pdf"] .tab-label-container {
 /* Buttons */
 .tab-close-button,
 .tab-reset-button {
-  border-radius: calc(var(--nebula-border-radius) - 4px) !important;
+  border-radius: var(--nebula-radius-inner) !important;
   transition: opacity 0.25s ease-out !important;
   position: relative;
   z-index: 5; /* keep above gradient */
@@ -156,19 +156,6 @@ html:not([zen-single-toolbar="true"], [zen-sidebar-expanded="true"])
 }
 
 /* ------------------- Tab Backgrounds ------------------- */
-
-/* Zen 1.22 applies superellipse corners globally (2.1 on Windows).
- * Keep Nebula's circular tab corners on both the background and clipping
- * wrappers; increasing border-radius alone still leaves them boxy. */
-.tabbrowser-tab,
-.tabbrowser-tab::before,
-.tabbrowser-tab .tab-stack,
-.tabbrowser-tab .tab-background,
-.tabbrowser-tab .tab-background::before,
-.tabbrowser-tab .tab-background::after,
-tab-group[split-view-group] .tab-group-container {
-  corner-shape: round !important;
-}
 
 .tabbrowser-tab {
   .tab-background {
@@ -218,7 +205,9 @@ tab-group[split-view-group] .tab-group-container {
 #tabs-newtab-button.toolbarbutton-1::before {
   content: "";
   position: absolute;
-  inset: 0;
+  /* Firefox widens this pseudo past the button for a larger click target;
+   * keep the hover background flush with the button, like tab backgrounds. */
+  inset: 0 !important;
   border-radius: var(--nebula-border-radius) !important;
   background-color: transparent;
   box-shadow: 0 0 3px transparent !important;
@@ -304,7 +293,7 @@ tab-group[split-view-group] .tab-group-container {
 
 .tabbrowser-tab[multiselected] .tab-background {
   position: relative !important;
-  overflow: visible !important;
+  overflow: hidden !important;
   background-color: var(--nebula-color-selected) !important;
   box-shadow: 0 0 3px var(--nebula-color-shadow) !important;
   transition:
@@ -312,17 +301,23 @@ tab-group[split-view-group] .tab-group-container {
     box-shadow 0.3s ease !important;
 }
 
+/* The glow is blurred once and slid with a compositor-only transform instead
+ * of animating background-position, which repainted the blurred layer every
+ * frame. The layer is three tab-widths wide (the overflow is clipped by
+ * .tab-background) and tiles the gradient every two, so shifting it by two
+ * widths loops seamlessly. The width needs !important to beat the generic
+ * `#zen-main-app-wrapper .tab-background::after` rule in essentials.css,
+ * which already made the visible glow one full tab wide. */
 .tabbrowser-tab[multiselected] .tab-background::after {
   content: "";
   position: absolute;
   inset: 3px;
-  transform: translateZ(0);
   z-index: -1;
-  width: calc(100% - 6px);
+  width: 300% !important;
   height: calc(100% - 6px);
 
   /* Default gradient style (option 1) */
-  background: linear-gradient(
+  background-image: linear-gradient(
     45deg,
     color-mix(in srgb, var(--zen-primary-color) 5%, black),
     color-mix(in srgb, var(--zen-primary-color) 30%, black),
@@ -331,7 +326,8 @@ tab-group[split-view-group] .tab-group-container {
     color-mix(in srgb, var(--zen-primary-color) 50%, black),
     color-mix(in srgb, var(--zen-primary-color) 15%, black)
   );
-  background-size: 200% 200%;
+  background-position: 0% 50%;
+  background-size: calc(200% / 3) 200%;
   filter: blur(10px) brightness(1) contrast(120%);
   opacity: 0.3 !important;
   animation: multiselect-glow-gradient 3.5s linear infinite;
@@ -344,7 +340,6 @@ html[nebula-collapsed-toolbar]
   .tabbrowser-tab[multiselected]
   .tab-background::after {
   inset: 2px 6px;
-  width: calc(100% - 12px);
   height: calc(100% - 4px);
 }
 
@@ -357,7 +352,7 @@ html[nebula-collapsed-toolbar]
 
 @media (-moz-pref("nebula-glow-gradient", 2)) {
   .tabbrowser-tab[multiselected] .tab-background::after {
-    background: linear-gradient(
+    background-image: linear-gradient(
       45deg,
       light-dark(#ddd, #fff),
       light-dark(#eee, #ddd),
@@ -366,13 +361,12 @@ html[nebula-collapsed-toolbar]
       light-dark(#eee, #ddd),
       light-dark(#ddd, #fff)
     );
-    background-size: 200% 200%;
   }
 }
 
 @media (-moz-pref("nebula-glow-gradient", 3)) {
   .tabbrowser-tab[multiselected] .tab-background::after {
-    background: linear-gradient(
+    background-image: linear-gradient(
       45deg,
       #ff8a00,
       #e52e71,
@@ -380,18 +374,17 @@ html[nebula-collapsed-toolbar]
       #00c9ff,
       #ff8a00
     );
-    background-size: 200% 200%;
   }
 }
 
 /* Animation */
 @keyframes multiselect-glow-gradient {
   from {
-    background-position: 0% 50%;
+    transform: translateX(0);
   }
 
   to {
-    background-position: 200% 50%;
+    transform: translateX(calc(-200% / 3));
   }
 }
 
@@ -400,7 +393,6 @@ html[nebula-collapsed-toolbar]
 .tabbrowser-tab {
   position: relative;
   overflow: hidden;
-  border-radius: calc(var(--nebula-border-radius) + 1px);
 }
 
 .tabbrowser-tab::before {
@@ -422,9 +414,7 @@ html[nebula-collapsed-toolbar]
   animation: tab-hover-gradient 3.5s linear infinite paused;
   opacity: 0;
   filter: blur(10px) brightness(1) contrast(120%);
-  transition:
-    opacity 0.7s ease-in-out,
-    transform 0.2s;
+  transition: opacity 0.7s ease-in-out;
   pointer-events: none;
 }
 
@@ -476,17 +466,8 @@ html[nebula-collapsed-toolbar] .tabbrowser-tab::before {
 }
 
 .tabbrowser-tab:has(.tab-close-button:hover, .tab-reset-button:hover)::before,
-#zen-essentials-container .tabbrowser-tab[selected]::before,
-#zen-essentials-container .tabbrowser-tab[selected]:active::before {
+.zen-essentials-container .tabbrowser-tab[selected]::before {
   opacity: 0 !important;
-}
-
-.tabbrowser-tab:active::before {
-  transform: scale(0.95);
-}
-
-#zen-essentials-container .tabbrowser-tab:active::before {
-  transform: none !important;
 }
 
 /* Animation */
@@ -525,7 +506,7 @@ tab-group[split-view-group] .tab-group-container {
   padding: 2px !important;
   position: relative;
   transform: scale(1);
-  border-radius: 13px !important;
+  border-radius: var(--nebula-radius-outer) !important;
   background-color: transparent !important;
   box-shadow: 0 0 8px rgb(0 0 0 / 0%) !important;
   transition:
@@ -599,12 +580,12 @@ tab-group[split-view-group] .tabbrowser-tab {
 
   /* background + shape */
   .tab-background {
-    border-radius: 12px !important;
+    border-radius: var(--nebula-border-radius) !important;
   }
 
   /* close button shape + scale */
   .tab-close-button {
-    border-radius: 10px !important;
+    border-radius: var(--nebula-radius-inner) !important;
     scale: 0.8 !important;
   }
 }

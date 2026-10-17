@@ -1,26 +1,136 @@
 /* -------------------------- ZEN LIBRARY -------------------------- */
 
 :root {
-  /* A denser glass surface keeps file names legible over web pages/artwork. */
-  --nebula-library-surface: light-dark(
-    rgb(250 250 250 / 88%),
-    rgb(18 18 18 / 88%)
-  );
   --nebula-library-text: light-dark(#1f1f1f, #f4f4f4);
   --nebula-library-text-secondary: light-dark(#454545, #c6c6c6);
-  --nebula-library-hover: light-dark(rgb(0 0 0 / 6%), rgb(255 255 255 / 8%));
-  --nebula-library-shadow:
-    0 0 0 1px light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 10%)),
-    0 8px 24px rgb(0 0 0 / 18%);
 }
 
-zen-library,
-#zen-library-download-list {
-  background: var(--nebula-library-surface) !important;
+/* Zen slides the page aside with an inline transform, which leaves nothing
+   behind the library to blur. Keep the page in place so the library opens
+   over it, like the compact sidebar. */
+:root:has(zen-library:is([open], [transitioning]))
+  :is(#zen-appcontent-wrapper, #zen-toast-container) {
+  transform: none !important;
+}
+
+/* A floating island inset from the window edges, like the compact sidebar. */
+zen-library {
+  --zen-library-pill-bg: var(--nebula-color) !important;
+  --zen-library-pill-hover-bg: var(--nebula-color-hover) !important;
+  --zen-library-radius: var(--nebula-radius-inner) !important;
+  --nebula-library-gap: calc(var(--zen-element-separation, 8px) + 4px);
+
+  top: var(--nebula-library-gap) !important;
+  bottom: var(--nebula-library-gap) !important;
+  left: var(--nebula-library-gap) !important;
+  background: var(--nebula-color-glass) !important;
   color: var(--nebula-library-text) !important;
   backdrop-filter: var(--nebula-glass) !important;
   border-radius: var(--nebula-border-radius) !important;
-  box-shadow: var(--nebula-library-shadow) !important;
+  box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
+}
+
+/* Transparent about: pages leave the blur see-through; see sidebar.css. */
+@media (-moz-pref("browser.tabs.allow_transparent_browser")) {
+  :root[nebula-transparent-page] zen-library {
+    backdrop-filter: url("../filters/glass-underlay.svg#dark") !important;
+  }
+
+  :root[nebula-transparent-page][zen-should-be-dark-mode="false"] zen-library {
+    backdrop-filter: url("../filters/glass-underlay.svg#light") !important;
+  }
+}
+
+:root[zen-right-side="true"] zen-library {
+  left: auto !important;
+  right: var(--nebula-library-gap) !important;
+}
+
+/* Zen hardcodes these corners; map them onto the radius scale. */
+.zen-library-tab::before,
+.zen-library-row,
+.zen-library-boost-row,
+.zen-library-media-item {
+  border-radius: var(--nebula-border-radius) !important;
+}
+
+.zen-library-media-thumb,
+.zen-library-boost-icon::before {
+  border-radius: var(--nebula-radius-inner) !important;
+}
+
+.zen-library-space,
+.zen-library-space::before,
+.zen-library-media-opt-in {
+  border-radius: var(--nebula-radius-outer) !important;
+}
+
+.zen-library-row-icon,
+.zen-library-space-icon {
+  border-radius: var(--nebula-radius-small) !important;
+}
+
+/* Nebula's tab states: soft shadow on hover and selection, 0.3s easing. */
+:is(
+  .zen-library-tab::before,
+  .zen-library-row,
+  .zen-library-media-item,
+  .zen-library-search-box,
+  .zen-library-filter-button,
+  .zen-library-filter-done
+) {
+  box-shadow: 0 0 3px transparent !important;
+  transition:
+    background-color 0.3s ease,
+    box-shadow 0.3s ease,
+    transform 0.1s ease-in-out,
+    scale 0.14s ease !important;
+}
+
+.zen-library-tab:hover::before,
+.zen-library-row:hover,
+.zen-library-media-item:hover,
+:is(.zen-library-filter-button, .zen-library-filter-done):hover,
+.zen-library-search-box:hover {
+  background: var(--nebula-color-hover) !important;
+  box-shadow: 0 0 3px var(--nebula-color-shadow) !important;
+}
+
+.zen-library-tab[active]::before,
+.zen-library-search-box:focus-within,
+.zen-library-filter-chip[active] {
+  background: var(--nebula-color-selected) !important;
+  box-shadow: 0 0 3px var(--nebula-color-shadow) !important;
+}
+
+.zen-library-space-icon:hover {
+  background: var(--nebula-color-hover) !important;
+}
+
+/* The search and filter pills head the panel like the URL bar. */
+:is(
+  .zen-library-search-box,
+  .zen-library-filter-button,
+  .zen-library-filter-done
+) {
+  border-radius: var(--nebula-border-radius) !important;
+}
+
+.zen-library-search-results[scrolled] {
+  border-top-color: var(--nebula-color) !important;
+}
+
+/* Zen's white gradient rail reads as a separate panel on the theme. */
+zen-library #zen-library-side {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.zen-library-media-opt-in {
+  background: var(--nebula-color-glass) !important;
+  outline: 1px solid var(--nebula-color) !important;
+  outline-offset: -1px !important;
+  box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
 }
 
 /* Keep Zen's badge and sidebar mask in time with the preview. */
@@ -86,14 +196,14 @@ zen-library,
 #zen-library-download-list .zen-library-download-list-download {
   height: auto !important;
   min-height: 52px;
-  border-radius: max(4px, calc(var(--nebula-border-radius) - 6px)) !important;
+  border-radius: var(--nebula-radius-inner) !important;
   /* Animate the surface and content together, without Zen's row stagger. */
   transform: none !important;
   opacity: 1 !important;
   transition: none !important;
 
   &:hover {
-    background: var(--nebula-library-hover) !important;
+    background: var(--nebula-color-hover) !important;
   }
 
   & .zen-library-download-list-title-container {
@@ -116,7 +226,7 @@ zen-library,
   }
 
   & .zen-library-download-badge:not([downloading]) {
-    scale: 1.6;
+    scale: 1.6 !important;
   }
 
   &[downloading] .zen-library-download-action {
@@ -129,8 +239,8 @@ zen-library,
     width: 32px;
     height: 32px;
     padding: 0 !important;
-    margin: auto 0 auto 4px;
-    border-radius: 8px !important;
+    margin: auto 0 auto 4px !important;
+    border-radius: var(--nebula-radius-inner) !important;
     -moz-context-properties: fill;
     fill: currentcolor;
   }

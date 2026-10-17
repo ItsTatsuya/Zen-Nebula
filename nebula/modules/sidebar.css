@@ -1,25 +1,3 @@
-/* -------------------------- COLLAPSED FIX -------------------------- */
-/*
-html[nebula-collapsed-toolbar] {
-  #titlebar #TabsToolbar {
-    padding-left: 2px;
-    padding-right: 2px;
-    transform: none;
-    width: 60px;
-  }
-
-  #navigator-toolbox {
-    max-width: calc(var(--zen-toolbox-max-width) + 5px);
-    min-width: calc(var(--zen-toolbox-max-width) + 5px);
-    padding-bottom: var(--zen-toolbox-padding);
-
-    & #titlebar {
-      align-content: center;
-      justify-content: center;
-    }
-  }
-} */
-
 /* -------------------------- COMPACT SIDEBAR -------------------------- */
 
 #navigator-toolbox:not([animate="true"]) {
@@ -32,7 +10,7 @@ html[nebula-collapsed-toolbar] {
       pointer-events: none;
       outline: 0 !important;
       z-index: -1;
-      border-radius: 11px !important;
+      border-radius: calc(var(--nebula-border-radius) - 2px) !important;
       background: transparent !important;
     }
 
@@ -48,30 +26,13 @@ html[nebula-collapsed-toolbar] {
   }
 }
 
-/* -------------------------- COMPACT SIDEBAR PSEUDO BACKGROUND -------------------------- */
-
-#Nebula-titlebar-background {
-  position: absolute;
-  z-index: -100000;
-  pointer-events: none;
-  border-radius: 11px;
-  opacity: 0;
-  /* Must stay transparent: a solid fill is sampled by compact sidebar
-   * backdrop-filter and makes glass look opaque. */
-  background-color: transparent;
-}
-
-#Nebula-titlebar-background.visible {
-  opacity: 1;
-}
-
 /* --- Titlebar theming --- */
 
 /* Filter on the floating titlebar so its background layer cannot cover the
  * sampled web content. The background layer only supplies the tint. */
 :root[zen-compact-mode="true"] #titlebar {
   backdrop-filter: var(--nebula-glass) !important;
-  border-radius: var(--nebula-border-radius, 13px) !important;
+  border-radius: var(--nebula-border-radius) !important;
 }
 
 /* Arc's acrylic approach: composite and blur the painted background, never
@@ -87,10 +48,8 @@ html[nebula-collapsed-toolbar] {
 
       > :is(.zen-toolbar-background, .zen-browser-generic-background) {
         background: var(--nebula-color-glass) !important;
-        backdrop-filter: var(--zen-backdrop-underlay, blur(0))
-          var(--nebula-glass) !important;
-        /* Confine the SVG underlay to the visible glass, excluding gaps. */
-        clip-path: inset(0 round var(--nebula-border-radius, 13px));
+        backdrop-filter: var(--nebula-glass) !important;
+        clip-path: inset(0 round var(--nebula-border-radius));
         box-shadow: none !important;
 
         &::before,
@@ -99,6 +58,27 @@ html[nebula-collapsed-toolbar] {
         }
       }
     }
+  }
+
+  /* Transparent about: pages leave the blur see-through, so they need an
+   * opaque floor. Gecko skips CSS filters after a url() filter, so Nebula's
+   * SVG filter supplies the floor and the blur together. */
+  :root[zen-compact-mode="true"][nebula-transparent-page]:not(
+      [inDOMFullscreen="true"]
+    )
+    #navigator-toolbox:not([animate="true"])
+    #titlebar
+    > :is(.zen-toolbar-background, .zen-browser-generic-background) {
+    backdrop-filter: url("../filters/glass-underlay.svg#dark") !important;
+  }
+
+  :root[zen-compact-mode="true"][nebula-transparent-page][zen-should-be-dark-mode="false"]:not(
+      [inDOMFullscreen="true"]
+    )
+    #navigator-toolbox:not([animate="true"])
+    #titlebar
+    > :is(.zen-toolbar-background, .zen-browser-generic-background) {
+    backdrop-filter: url("../filters/glass-underlay.svg#light") !important;
   }
 }
 
@@ -116,7 +96,7 @@ html[nebula-compact-mode] #titlebar > .zen-browser-generic-background,
 :root[zen-compact-mode="true"] #titlebar > .zen-toolbar-background,
 :root[zen-compact-mode="true"] #titlebar > .zen-browser-generic-background {
   background: transparent !important;
-  border-radius: var(--nebula-border-radius, 13px) !important;
+  border-radius: var(--nebula-border-radius) !important;
   box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
   backdrop-filter: none !important;
   isolation: auto !important;
@@ -152,14 +132,6 @@ html[nebula-compact-mode] #titlebar > .zen-browser-generic-background::after,
 :root[zen-right-side="true"][zen-compact-mode="true"] #titlebar {
   left: auto !important;
   right: var(--zen-element-separation) !important;
-}
-
-@media (-moz-pref("zen.view.compact.hide-toolbar")) {
-  @media not all and (-moz-pref("zen.view.compact.hide-tabbar")) {
-    #Nebula-titlebar-background {
-      opacity: 0 !important;
-    }
-  }
 }
 
 /* -------------------- SINGLE TOOLBAR -------------------- */
@@ -238,21 +210,16 @@ html[nebula-single-toolbar][nebula-compact-mode] #titlebar {
 
 /* ------------------------- GENERAL SIDEBAR -------------------------- */
 
-/* hide scrollbar */
-scrollbox {
+/* Hide the scrollbars of the sidebar's tab lists. */
+#navigator-toolbox
+  :is(
+    .workspace-arrowscrollbox,
+    #tabbrowser-arrowscrollbox,
+    #pinned-tabs-container
+  )::part(scrollbox),
+#navigator-toolbox scrollbox {
   scrollbar-width: none !important;
 }
-
-/*
-#zen-tabs-wrapper {
-    mask-image: linear-gradient(to bottom, black 90%, rgba(0, 0, 0, 0.4) 97%, transparent 100%) !important;
-    -webkit-mask-image: linear-gradient(to bottom, black 90%, rgba(0, 0, 0, 0.7) 97%, transparent 100%) !important;
-    scrollbar-width: none !important;
-    -ms-overflow-style: none !important;
-    overflow-y: auto !important;
-    transition: mask-image 0.3s ease, -webkit-mask-image 0.3s ease;
-}
-*/
 
 /* Hide the overflow background gradient */
 .workspace-arrowscrollbox[overflowing] {
@@ -270,15 +237,10 @@ scrollbox {
 
 /* -------------------------- Personal Toolbar --------------------------- */
 
-/* Only apply when NOT in single toolbar */
-/* html:not([nebula-single-toolbar]) #PersonalToolbar:not([collapsed=""]) {
-  padding-bottom: 3px !important;
-} */
-
 #PersonalToolbar toolbarbutton:hover {
   background-color: var(--nebula-color-hover) !important;
   box-shadow: 0 0 3px var(--nebula-color-shadow) !important;
-  border-radius: 10px !important;
+  border-radius: var(--nebula-radius-inner) !important;
   transition:
     background-color 0.3s ease,
     box-shadow 0.2s ease-out !important;
@@ -287,23 +249,17 @@ scrollbox {
 /* Auto Hide Bookmark-bar */
 
 @media (not (-moz-pref("nebula-bookmarks-autohide", 0))) {
-  /* Disabled in the compact mode (hide toolbar) to prevent conflicts. */
-  @media (not ((-moz-pref("zen.view.compact.hide-toolbar")) and 
- (-moz-pref("zen.view.compact.enable-at-startup")))) {
+  /* Disabled while compact mode hides the toolbar, to prevent conflicts.
+   * Zen's live attribute is used: it only writes
+   * zen.view.compact.enable-at-startup on some toggles. */
+  :root:not([zen-compact-mode="true"]) {
     #personal-bookmarks toolbarbutton.bookmark-item:not(#OtherBookmarks),
     #import-button {
       background-color: light-dark(
         rgb(255 255 255 / 45%),
         rgb(0 0 0 / 55%)
       ) !important;
-      border-radius: 13px !important;
-    }
-
-    /* Adapt for Zen (Since zen v1.17.1) */
-    @media (-moz-pref("zen.view.compact.enable-at-startup")) {
-      #navigator-toolbox {
-        height: calc(100% - (var(--zen-element-separation) * 4.5)) !important;
-      }
+      border-radius: var(--nebula-border-radius) !important;
     }
 
     #PersonalToolbar {
@@ -339,6 +295,60 @@ scrollbox {
         transform: translateY(0) !important;
         pointer-events: auto !important;
         transition-delay: 0.15s !important;
+      }
+    }
+  }
+
+  @media not (-moz-pref("zen.view.compact.hide-toolbar")) {
+    :root[zen-compact-mode="true"] {
+      #personal-bookmarks toolbarbutton.bookmark-item:not(#OtherBookmarks),
+      #import-button {
+        background-color: light-dark(
+          rgb(255 255 255 / 45%),
+          rgb(0 0 0 / 55%)
+        ) !important;
+        border-radius: var(--nebula-border-radius) !important;
+      }
+
+      #PersonalToolbar {
+        position: absolute !important;
+        z-index: 1 !important;
+        opacity: 0 !important;
+        pointer-events: none !important;
+        transform: translateY(-10px) !important;
+        transition:
+          opacity 200ms ease-out,
+          transform 200ms ease-out !important;
+        transition-delay: 0.35s !important;
+      }
+
+      #PersonalToolbar:has([open]),
+      #PersonalToolbar:has([aria-expanded="true"]),
+      #PersonalToolbar:has(menupopup[open]),
+      #PersonalToolbar:has(menu[open]),
+      #PersonalToolbar:has(.bookmark-item[open]),
+      #PersonalToolbar:hover,
+      #PersonalToolbar:focus-within {
+        opacity: 1 !important;
+        transform: translateY(0) !important;
+        pointer-events: auto !important;
+        transition-delay: 0s !important;
+      }
+
+      /* Expand the bookmarks-bar by hovering */
+      @media (-moz-pref("nebula-bookmarks-autohide", 1)) or (-moz-pref("nebula-bookmarks-autohide", 3)) {
+        #nav-bar:hover + #PersonalToolbar,
+        #PersonalToolbar:hover {
+          opacity: 1 !important;
+          transform: translateY(0) !important;
+          pointer-events: auto !important;
+          transition-delay: 0.15s !important;
+        }
+      }
+
+      /* Adapt for Zen (Since zen v1.17.1) */
+      #navigator-toolbox {
+        height: calc(100% - (var(--zen-element-separation) * 4.5)) !important;
       }
     }
   }
@@ -383,41 +393,14 @@ findbar {
   align-items: center !important;
   gap: 6px !important;
   padding: 6px 10px !important;
-  background: var(--nebula-color-glass) !important;
+  /* The glass tint sits on an opaque plate painted by the findbar itself, so
+   * the plate can never drift from the bar. */
+  background:
+    linear-gradient(var(--nebula-color-glass), var(--nebula-color-glass)),
+    light-dark(rgb(200 200 200 / 100%), rgb(30 30 30 / 100%)) !important;
   backdrop-filter: var(--nebula-glass) !important;
-  border-radius: 13px !important;
+  border-radius: var(--nebula-border-radius) !important;
   box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
-}
-
-#zen-tabbox-wrapper::before {
-  position: absolute !important;
-  z-index: 0 !important;
-  content: "" !important;
-  background-color: light-dark(
-    rgb(200 200 200 / 100%),
-    rgb(30 30 30 / 100%)
-  ) !important;
-  opacity: 0;
-  width: 89%;
-  top: 29px !important;
-  right: 30px;
-  height: 43px !important;
-  bottom: auto !important;
-  border-radius: 13px;
-  visibility: visible !important;
-  transition:
-    opacity 0.2s ease,
-    width 0.5s ease !important;
-}
-
-:has(
-    .browserSidebarContainer.deck-selected
-      > .browserContainer
-      > findbar:not([hidden])
-  )
-  #zen-tabbox-wrapper::before {
-  opacity: 1 !important;
-  width: 90.05%;
 }
 
 findbar:not([hidden]) {
@@ -450,12 +433,12 @@ findbar[hidden] {
 .findbar-textbox:focus-visible {
   outline: 2px solid var(--focus-outline-color, Highlight) !important;
   outline-offset: -2px !important;
-  border-radius: 4px !important;
+  border-radius: var(--nebula-radius-inner) !important;
 }
 
 findbar toolbarbutton {
   background: light-dark(rgb(255 255 255 / 15%), rgb(0 0 0 / 15%)) !important;
-  border-radius: 6.5px !important;
+  border-radius: calc(var(--nebula-border-radius) / 2) !important;
   transition:
     background 0.2s ease,
     transform 0.1s ease-out !important;
@@ -524,7 +507,7 @@ findbar toolbarbutton:active {
   padding: 4px 8px !important;
   appearance: none !important;
   background-color: transparent !important;
-  border-radius: 10px !important;
+  border-radius: var(--nebula-radius-inner) !important;
   border: none !important;
 }
 

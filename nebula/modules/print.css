@@ -1,0 +1,101 @@
+/* ------------------------- PRINT ------------------------- */
+/* The print dialog is a tab-modal box in the browser window: a preview stack
+ * on the left and print.html (a chrome frame Sine also styles) on the right.
+ * The preview pages are rendered remotely, so only the chrome around them is
+ * themed here. */
+
+.dialogBox.printDialogBox {
+  border-radius: var(--nebula-border-radius) !important;
+  border: 1px solid light-dark(rgb(0 0 0 / 6%), rgb(255 255 255 / 8%)) !important;
+  outline: none !important;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 25%) !important;
+  background: var(--nebula-color-glass) !important;
+  backdrop-filter: var(--nebula-glass) !important;
+  overflow: hidden;
+
+  .previewStack {
+    background-color: transparent !important;
+  }
+}
+
+/* Page navigation pill. Its parts live in a shadow root that reads these
+ * toolbar tokens; the host clips the 6px inner corners to the theme radius. */
+printpreview-pagination {
+  --toolbar-background-color: light-dark(
+    rgb(255 255 255 / 70%),
+    rgb(30 30 30 / 70%)
+  );
+  --toolbarbutton-background-color-hover: light-dark(
+    rgb(0 0 0 / 6%),
+    rgb(255 255 255 / 8%)
+  );
+  --toolbarbutton-background-color-active: light-dark(
+    rgb(0 0 0 / 10%),
+    rgb(255 255 255 / 14%)
+  );
+  --card-box-shadow: 0 4px 16px rgb(0 0 0 / 25%);
+
+  border-radius: var(--nebula-border-radius);
+  overflow: hidden;
+}
+
+@-moz-document url("chrome://global/content/print.html")
+{
+  :root {
+    --nebula-print-control-radius: max(
+      4px,
+      calc(var(--nebula-border-radius) - 4px)
+    );
+    --nebula-print-border: light-dark(rgb(0 0 0 / 8%), rgb(255 255 255 / 8%));
+    --button-border-radius: var(--nebula-print-control-radius) !important;
+    --border-radius-small: var(--nebula-print-control-radius) !important;
+    --border-radius-medium: var(--nebula-print-control-radius) !important;
+    --input-text-border-radius: var(--nebula-print-control-radius) !important;
+    --button-background-color: light-dark(
+      rgb(255 255 255 / 44%),
+      rgb(255 255 255 / 8%)
+    ) !important;
+    --button-background-color-hover: light-dark(
+      rgb(255 255 255 / 64%),
+      rgb(255 255 255 / 14%)
+    ) !important;
+    --button-background-color-active: light-dark(
+      rgb(255 255 255 / 76%),
+      rgb(255 255 255 / 20%)
+    ) !important;
+    --input-text-background-color: light-dark(
+      rgb(255 255 255 / 44%),
+      rgb(0 0 0 / 20%)
+    ) !important;
+    --border-color-interactive: var(--nebula-print-border) !important;
+
+    background: transparent !important;
+  }
+
+  body {
+    background: transparent !important;
+  }
+
+  .header-container {
+    padding-block: var(--space-medium) !important;
+    border-bottom: 1px solid var(--nebula-print-border);
+  }
+
+  hr {
+    border-color: var(--nebula-print-border) !important;
+  }
+
+  select,
+  input:is([type="number"], [type="text"]) {
+    border: 1px solid var(--nebula-print-border) !important;
+    border-radius: var(--nebula-print-control-radius) !important;
+  }
+
+  .footer-container {
+    border-top: 1px solid var(--nebula-print-border);
+  }
+
+  #button-container button {
+    border-radius: var(--nebula-print-control-radius) !important;
+  }
+}

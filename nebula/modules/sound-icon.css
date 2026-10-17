@@ -59,7 +59,9 @@
     }
   }
 
-  @media (not (-moz-pref("zen.view.sidebar-expanded"))) and (-moz-pref("nebula-default-sound-style", 1)) {
+  /* Default style (1). The floating style (2) below already shows the same
+   * icon and badge state permanently, so this hover reveal is a no-op there. */
+  @media not (-moz-pref("zen.view.sidebar-expanded")) {
     .tabbrowser-tab:is([soundplaying], [muted], [activemedia-blocked]):hover
       img {
       opacity: 1 !important;
@@ -106,7 +108,7 @@
     }
   }
 
-  #zen-essentials-container {
+  .zen-essentials-container {
     .tab-icon-overlay:is([soundplaying], [muted], [activemedia-blocked]) {
       margin: 0 !important;
     }

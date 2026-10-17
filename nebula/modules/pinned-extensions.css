@@ -33,10 +33,6 @@
     gap: calc(var(--zen-toolbox-padding) - 3px) !important;
   }
 
-  #TabsToolbar-customization-target #Zen-tabs-wrapper {
-    max-height: 700px !important;
-  }
-
   #TabsToolbar-customization-target .unified-extensions-item-action-button {
     padding: 0 !important;
   }
@@ -76,7 +72,7 @@
   #TabsToolbar-customization-target > toolbaritem {
     background-color: var(--nebula-color) !important;
     box-shadow: 0 0 3px light-dark(rgb(255 255 255 / 12%), rgb(0 0 0 / 12%)) !important;
-    border-radius: calc(var(--nebula-border-radius) + 1px) !important;
+    border-radius: var(--nebula-border-radius) !important;
     margin: 0 !important;
     order: -1 !important;
     flex-grow: 1 !important;
@@ -115,7 +111,7 @@
 
   .unified-extensions-item {
     position: relative !important;
-    border-radius: calc(var(--nebula-border-radius) - 2px) !important;
+    border-radius: var(--nebula-radius-inner) !important;
   }
 
   .unified-extensions-item::before {
@@ -132,8 +128,8 @@
       color-mix(in srgb, var(--zen-primary-color) 15%, black)
     );
     background-size: 200% 200%;
-    border-radius: calc(var(--nebula-border-radius) - 2px) !important;
-    clip-path: inset(0 round calc(var(--nebula-border-radius) - 2px));
+    border-radius: var(--nebula-radius-inner) !important;
+    clip-path: inset(0 round var(--nebula-radius-inner));
     animation: tab-hover-gradient 3.5s linear infinite;
     animation-play-state: paused;
     opacity: 0;
@@ -191,16 +187,6 @@
       background-size: 200% 200%;
       animation: tab-hover-gradient 3.5s linear infinite;
       animation-play-state: paused;
-    }
-  }
-
-  @keyframes tab-hover-gradient {
-    from {
-      background-position: 0% 50%;
-    }
-
-    to {
-      background-position: 200% 50%;
     }
   }
 }

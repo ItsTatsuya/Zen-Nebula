@@ -128,38 +128,44 @@
   }
 }
 
-@media (not (-moz-pref("nebula-ui-font", "browser"))) or (-moz-pref("nebula-ui-font-custom-enable")) {
-  :is(
-    #nav-bar,
-    #TabsToolbar,
-    #PersonalToolbar,
-    #urlbar,
-    #sidebar-box,
-    zen-library,
-    zen-library *,
-    #zen-essentials-container,
-    #zen-workspaces-button,
-    #customization-container,
-    #customization-uidensity-menu,
-    #unified-extensions-panel,
-    #tab-notification-deck,
-    tooltip,
-    .browserContainer > findbar,
-    menupopup,
-    #mainPopupSet *,
-    #PersonalToolbar *,
-    #tabbrowser-tabs,
-    .tabbrowser-tab,
-    .tab-label,
-    .tab-text,
-    .toolbarbutton-text,
-    .sidebar-panel,
-    .zen-current-workspace-indicator-name,
-    #zen-tabs-wrapper,
-    #navigator-toolbox *:not(.zen-toolbar-background, #zen-toolbar-background)
-  ) {
-    font-family: var(--nebula-ui-font) !important;
-    font-weight: var(--nebula-ui-font-weight, 400) !important;
+/* content.css imports this file for the font variables only. Keep the
+ * overrides on chrome documents so they cannot reach web pages that reuse
+ * class names like .tab-label. */
+@-moz-document url-prefix("chrome://")
+{
+  @media (not (-moz-pref("nebula-ui-font", "browser"))) or (-moz-pref("nebula-ui-font-custom-enable")) {
+    :is(
+      #nav-bar,
+      #TabsToolbar,
+      #PersonalToolbar,
+      #urlbar,
+      #sidebar-box,
+      zen-library,
+      zen-library *,
+      .zen-essentials-container,
+      #zen-workspaces-button,
+      #customization-container,
+      #customization-uidensity-menu,
+      #unified-extensions-panel,
+      #tab-notification-deck,
+      tooltip,
+      .browserContainer > findbar,
+      menupopup,
+      #mainPopupSet *,
+      #PersonalToolbar *,
+      #tabbrowser-tabs,
+      .tabbrowser-tab,
+      .tab-label,
+      .tab-text,
+      .toolbarbutton-text,
+      .sidebar-panel,
+      .zen-current-workspace-indicator-name,
+      #zen-tabs-wrapper,
+      #navigator-toolbox *:not(.zen-toolbar-background, #zen-toolbar-background)
+    ) {
+      font-family: var(--nebula-ui-font) !important;
+      font-weight: var(--nebula-ui-font-weight, 400) !important;
+    }
   }
 }
 

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg">
+  <!-- Sidebar glass for transparent about: pages. The floor and blur share one
+       filter: Gecko skips CSS filter functions that follow a url() filter. -->
+  <filter id="dark" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feFlood flood-color="black" result="floor" />
+    <feMerge result="base">
+      <feMergeNode in="floor" />
+      <feMergeNode in="SourceGraphic" />
+    </feMerge>
+    <feGaussianBlur in="base" stdDeviation="32" edgeMode="duplicate" />
+    <feColorMatrix type="saturate" values="1.4" result="glass" />
+    <feMerge>
+      <feMergeNode in="floor" />
+      <feMergeNode in="glass" />
+    </feMerge>
+  </filter>
+  <filter id="light" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+    <feFlood flood-color="white" result="floor" />
+    <feMerge result="base">
+      <feMergeNode in="floor" />
+      <feMergeNode in="SourceGraphic" />
+    </feMerge>
+    <feGaussianBlur in="base" stdDeviation="32" edgeMode="duplicate" />
+    <feColorMatrix type="saturate" values="1.4" result="glass" />
+    <feMerge>
+      <feMergeNode in="floor" />
+      <feMergeNode in="glass" />
+    </feMerge>
+  </filter>
+</svg>

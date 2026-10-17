@@ -11,6 +11,35 @@ const theme = JSON.parse(await read("theme.json"));
 const template = JSON.parse(await read("template/mods.json")).Nebula;
 const pkg = JSON.parse(await read("package.json"));
 const script = await read("js/nebula.uc.js");
+const docs = await read("docs/configuration.md");
+
+// Remove comments so a mention in a comment never counts as a consumer.
+// Strings are skipped intact; JS regex literals are not parsed, which is
+// acceptable while none of them contain "//" or "/*".
+function stripComments(source, { lineComments }) {
+  let output = "";
+  for (let i = 0; i < source.length; i++) {
+    const char = source[i];
+    if (char === '"' || char === "'" || char === "`") {
+      let end = i + 1;
+      while (end < source.length && source[end] !== char) {
+        if (source[end] === "\\") end++;
+        end++;
+      }
+      output += source.slice(i, end + 1);
+      i = end;
+    } else if (source.startsWith("/*", i)) {
+      const end = source.indexOf("*/", i + 2);
+      i = end === -1 ? source.length : end + 1;
+      output += " ";
+    } else if (lineComments && source.startsWith("//", i)) {
+      const end = source.indexOf("\n", i);
+      i = (end === -1 ? source.length : end) - 1;
+    } else output += char;
+  }
+  return output;
+}
+const code = stripComments(script, { lineComments: true });
 
 async function styles(directory) {
   const files = await readdir(path.join(root, directory), {
@@ -23,13 +52,23 @@ async function styles(directory) {
         return file.isDirectory()
           ? styles(name)
           : file.name.endsWith(".css")
-            ? read(name)
+            ? read(name).then((source) =>
+                stripComments(source, { lineComments: false }),
+              )
             : "";
       }),
     )
   ).join("\n");
 }
 const css = await styles("nebula");
+
+// A var() with no fallback and no definition invalidates the whole declaration.
+for (const [, name] of css.matchAll(/var\((--nebula-[\w-]+)\s*\)/g)) {
+  assert.ok(
+    css.includes(`${name}:`) || code.includes(name),
+    `${name}: used without a definition`,
+  );
+}
 assert.equal(
   new Set(fields.map((field) => field.property)).size,
   fields.length,
@@ -47,8 +86,8 @@ for (const field of fields) {
         : "string";
   assert.equal(typeof field.defaultValue, expectedType, field.property);
   assert.ok(
-    css.includes(field.property) || script.includes(field.property),
-    field.property,
+    css.includes(field.property) || code.includes(field.property),
+    `${field.property}: no consumer outside comments`,
   );
   if (field.type === "dropdown") {
     assert.ok(
@@ -70,12 +109,48 @@ for (const field of fields) {
         ).test(css);
         const mediaConsumer =
           field.property === "nebula-media-background-style" &&
-          script.includes(`style === ${value}`);
+          code.includes(`style === ${value}`);
         assert.ok(cssConsumer || mediaConsumer, `${field.property}: ${value}`);
       }
     }
   }
 }
+
+// Every field needs an audit row; CSS-only prefs belong in the advanced table.
+const docRows = (heading) => {
+  const section = docs.split(/^## /m).find((part) => part.startsWith(heading));
+  assert.ok(section, `docs/configuration.md: missing "${heading}" section`);
+  return new Set(
+    // The key is the first table cell, or the second after a group name.
+    [...section.matchAll(/^\|(?:[^|\n]*\|)?\s*`([^`]+)`\s*\|/gm)].map(
+      ([, key]) => key,
+    ),
+  );
+};
+const auditRows = docRows("Preference audit");
+const advancedRows = docRows("Advanced `about:config` options");
+for (const field of fields) {
+  assert.ok(
+    auditRows.has(field.property),
+    `${field.property}: missing from the docs/configuration.md audit table`,
+  );
+}
+const knownPrefs = new Set(fields.map((field) => field.property));
+const readPrefs = new Set(
+  [
+    ...css.matchAll(/-moz-pref\(\s*["'](nebula[^"']*)["']/g),
+    ...code.matchAll(
+      /(?:get|set)(?:Bool|Int|String|Char)Pref\(\s*["'](nebula[^"']*)["']/g,
+    ),
+  ].map(([, name]) => name),
+);
+for (const name of readPrefs) {
+  assert.ok(
+    knownPrefs.has(name) || advancedRows.has(name),
+    `${name}: read by code but not in preferences.json or the docs' advanced table`,
+  );
+}
+
 for (const key of [
   "name",
   "version",
@@ -136,6 +211,7 @@ const sheets = {
   USER_SHEET: 1,
   loadAndRegisterSheet: (uri) => registered.add(uri.spec),
   unregisterSheet: (uri) => registered.delete(uri.spec),
+  sheetRegistered: (uri) => registered.has(uri.spec),
 };
 const context = vm.createContext({
   window: { windowUtils: { outerWindowID: 1 } },
@@ -152,7 +228,10 @@ const context = vm.createContext({
     io: { newURI: (spec) => ({ spec }) },
   },
   IOUtils: { readJSON: async () => preferences },
-  PathUtils: { join: (...parts) => parts.join("/") },
+  PathUtils: {
+    join: (...parts) => parts.join("/"),
+    toFileURI: (path) => `file:///${path}`,
+  },
   Cc: {
     "@mozilla.org/content/style-sheet-service;1": { getService: () => sheets },
   },
@@ -182,6 +261,12 @@ let sheet = decodeURIComponent([...registered][0]);
 assert.ok(sheet.includes("--var-nebula-border-radius: 21px"));
 assert.ok(sheet.includes('url-prefix("about:preferences")'));
 assert.ok(sheet.includes("--var-nebula-color-glass-dark: rgb(40 50 60 / 50%)"));
+assert.ok(
+  /html\[mozdisallowselectionprint\] \{\s*--nebula-ui-font-custom: /.test(
+    sheet,
+  ),
+  "pdf.js pages need the custom font family bridged too",
+);
 saved.set("var-nebula-border-radius", "invalid");
 polyfill.syncConfigVariables();
 assert.equal(registered.size, 1);
@@ -197,6 +282,14 @@ assert.equal(
   0,
   "Theme teardown must unregister its CSS bridge",
 );
+polyfill.registerPdfViewerSheet();
+polyfill.registerPdfViewerSheet();
+assert.deepEqual(
+  [...registered],
+  ["file:///profile/chrome/sine-mods/Nebula/nebula/content/better-pdf.css"],
+  "pdf.js runs where Sine cannot inject content styles; register them once",
+);
+registered.clear();
 
 saved.clear();
 defaults.clear();

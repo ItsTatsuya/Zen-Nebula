@@ -10,7 +10,7 @@
   height: 80%;
   margin: 0 5px 5px 0;
   padding: 0;
-  border-radius: 12px;
+  border-radius: var(--nebula-border-radius);
   background: var(--nebula-color) !important;
 }
 
@@ -43,6 +43,7 @@
   height: 100% !important;
   margin: 0 !important;
   border: none !important;
-  border-radius: 8px;
+  /* Firefox's customizeMode.css sets this radius at author level. */
+  border-radius: var(--nebula-radius-inner) !important;
   background: var(--nebula-color-selected) !important;
 }

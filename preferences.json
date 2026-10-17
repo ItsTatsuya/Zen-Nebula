@@ -689,6 +689,13 @@
   },
   {
     "type": "checkbox",
+    "property": "nebula-hide-search-suggestions",
+    "label": "Hide search suggestions in the address bar",
+    "margin": "12px 0",
+    "defaultValue": false
+  },
+  {
+    "type": "checkbox",
     "property": "nebula-pinned-extensions-mod",
     "label": "Style pinned extensions (requires toolbar placement)",
     "margin": "12px 0",

@@ -58,7 +58,7 @@
     content: "";
     position: absolute;
     inset: 0;
-    border-radius: 16px;
+    border-radius: var(--nebula-radius-outer);
     background-color: light-dark(rgb(255 255 255 / 5%), rgb(0 0 0 / 15%));
     opacity: 0;
     transition: opacity 0.3s ease;
@@ -75,7 +75,7 @@
   zen-folder:not(zen-folder zen-folder):has([selected="true"]),
   zen-folder:not(zen-folder zen-folder):has([folder-active="true"]) {
     padding: 2px !important;
-    border-radius: 16px;
+    border-radius: var(--nebula-radius-outer);
     margin: 2px !important; /* Top-level margin */
   }
 

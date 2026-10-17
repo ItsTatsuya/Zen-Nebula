@@ -63,37 +63,30 @@
   }
 }
 
-/* Toolbar Item Styles */
-#zen-media-controls-toolbar > toolbaritem {
-  position: relative;
+/* Card: the same glass as the floating status panel and compact titlebar,
+   tinted with the tab colors so it reads as part of the sidebar. */
+#zen-media-controls-toolbar > .zen-media-card {
   isolation: isolate;
   border-radius: var(--nebula-border-radius) !important;
+  outline: 1px solid var(--nebula-color) !important;
+  outline-offset: -1px !important;
+  background-color: var(--nebula-color) !important;
   backdrop-filter: var(--nebula-glass) !important;
+  box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
   transition:
-    border-radius 0.3s ease,
-    box-shadow 0.3s ease-in-out,
-    background-color 0.3s ease-in-out;
-  background-color: light-dark(
-    rgb(250 250 250 / 92%),
-    rgb(18 18 18 / 92%)
-  ) !important;
+    transform 0.35s var(--zen-media-stack-easing),
+    opacity 0.3s var(--zen-media-stack-easing),
+    filter 0.3s var(--zen-media-stack-easing),
+    padding 0.3s ease-out,
+    background-color 0.3s ease,
+    box-shadow 0.3s ease !important;
 
   &:hover {
-    border-radius: var(--nebula-border-radius) !important;
-    background-color: light-dark(
-      rgb(250 250 250 / 97%),
-      rgb(18 18 18 / 97%)
-    ) !important;
-    box-shadow: 0 0 15px var(--nebula-color-shadow);
+    background-color: var(--nebula-color-hover) !important;
   }
 }
 
 /* --------------------- Media Info --------------------- */
-
-#zen-media-service-hbox {
-  padding-top: 5px !important;
-  transition: padding 0.15s ease-in-out !important;
-}
 
 #zen-media-controls-toolbar .zen-media-title {
   font-size: 14px !important;
@@ -124,10 +117,24 @@
 
 /* --------------------- Media Progress Bar ---------------------- */
 
-#zen-media-progress-bar {
+/* Follow the card's text color so the bar stays visible on light glass and
+   turns white over artwork. */
+#zen-media-controls-toolbar .zen-media-progress-bar {
+  --zen-primary-color: currentcolor !important;
+  --zen-colors-border: rgb(100 100 100 / 1%) !important;
+
+  background-color: transparent !important;
+
+  &::-moz-range-track {
+    background: color-mix(in srgb, currentcolor 20%, transparent) !important;
+  }
+
+  /* Zen reveals the thumb with transform; Nebula adds a larger hover scale. */
   &::-moz-range-thumb {
     scale: 1;
-    transition: scale 0.2s ease;
+    transition:
+      transform 0.15s ease-out,
+      scale 0.2s ease !important;
   }
 
   &::-moz-range-track,
@@ -147,28 +154,24 @@
   }
 }
 
-#zen-media-progress-bar {
-  --zen-primary-color: rgb(255 255 255 / 100%) !important;
-  --zen-colors-border: rgb(100 100 100 / 1%) !important;
-}
-
-/* --------------------- Music notes animation ------------------ */
-/*
-#zen-media-focus-button::after {
-  display: none !important;
-}
-*/
 /* ---------------------- Control Buttons ------------------- */
 
-#zen-media-focus-button,
-#zen-media-mute-button,
-#zen-media-playpause-button,
-#zen-media-nexttrack-button,
-#zen-media-previoustrack-button,
-#zen-media-close-button {
+#zen-media-controls-toolbar
+  :is(
+    .zen-media-focus-button,
+    .zen-media-mute-button,
+    .zen-media-playpause-button,
+    .zen-media-nexttrack-button,
+    .zen-media-previoustrack-button,
+    .zen-media-close-button
+  ) {
+  border-radius: var(--nebula-radius-inner) !important;
+
+  /* Zen's toolbarbutton transition omits opacity; its :active scale still wins. */
   transition:
+    background-color 0.1s,
     opacity 0.3s ease-in-out,
-    transform 0.17s ease-out;
+    transform 0.17s ease-out !important;
   opacity: 1;
 
   &:hover {
@@ -179,57 +182,34 @@
 
 /* ------------------ Hover Animation for Info ------------------ */
 
+/* Zen's zen-media-controls.css owns max-height, opacity, padding and
+   pointer-events; Nebula replaces its slide with a blur and a taller reveal. */
 #zen-media-controls-toolbar .show-on-hover {
-  max-height: 0;
-  opacity: 0;
-  transform: translateY(0);
-  padding: 6px;
-  pointer-events: none;
+  transform: none !important;
   filter: blur(2px);
   transition:
-    max-height 0.3s ease,
-    filter 0.3s ease,
-    opacity 0.3s ease,
-    transform 0.3s ease,
-    padding 0.3s ease;
+    opacity 0.15s ease,
+    filter 0.15s ease,
+    padding 0.15s ease,
+    max-height 0.2s ease !important;
 
   > * {
     opacity: 0;
-    transform: translateY(0);
-    filter: blur(0);
-    transition:
-      opacity 0.3s ease 0.2s,
-      transform 0.3s ease 0.2s,
-      filter 0.3s ease 0.2s;
+    transition: opacity 0.15s ease;
   }
 }
 
 #zen-media-controls-toolbar:hover .show-on-hover {
-  max-height: 100px;
-  opacity: 1;
-  transform: translateY(0);
-  pointer-events: auto;
+  max-height: 100px !important;
   filter: blur(0);
+  transition:
+    max-height 0.3s ease,
+    filter 0.3s ease,
+    opacity 0.3s ease,
+    padding 0.3s ease !important;
 
   > * {
     opacity: 1;
-    transform: translateY(0);
-    filter: blur(0);
-  }
-}
-
-#zen-media-controls-toolbar:not(:hover) .show-on-hover {
-  transition:
-    opacity 0.15s ease,
-    filter 0.15s ease,
-    transform 0.15s ease,
-    padding 0.15s ease,
-    max-height 0.2s ease;
-
-  > * {
-    transition:
-      opacity 0.15s ease,
-      transform 0.15s ease,
-      filter 0.15s ease;
+    transition: opacity 0.3s ease 0.2s;
   }
 }
