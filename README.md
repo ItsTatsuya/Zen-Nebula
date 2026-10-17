@@ -1,10 +1,18 @@
 # Nebula Nova
 
+![Nebula Nova intro: the title fades in, then the theme's New Tab page rises into view](screenshots/intro.gif)
+
 Version **3.6.0**, maintained by **ItsTatsuya**.
 
-Fork of [Zen-Nebula](https://github.com/JustADumbPrsn/Zen-Nebula). A glass based theme for [Zen Browser](https://zen-browser.app/). Nebula Nova is installed and configured through [Sine](https://github.com/CosmoCreeper/Sine).
+Fork of [Zen-Nebula](https://github.com/JustADumbPrsn/Zen-Nebula). A glass-based theme for [Zen Browser](https://zen-browser.app/). Nebula Nova is installed and configured through [Sine](https://github.com/CosmoCreeper/Sine).
 
-![Nebula Nova on the New Tab page](screenshots/base.png)
+## Highlights
+
+- Frosted glass on the floating browser UI: compact sidebar, URL bar, find bar, and media player.
+- Tab switch animations, hover glow, and UI and website tints, with separate light and dark colors.
+- Fonts, corner radius, window controls, and layout are all set from Sine's mod settings.
+
+![Nebula Nova in compact mode, with the glass sidebar showing a tab folder, open tabs, and the media player](screenshots/base.png)
 
 ## Install
 
