@@ -92,12 +92,6 @@
   }
 }
 
-.collapsed-toolbar .essential-item {
-  justify-content: center; /* Ensures items are centered */
-  align-items: center;
-  margin: auto; /* Adjust if needed */
-}
-
 /* -------------------------- ANIMATIONS FOR ESSENTIALS -------------------------- */
 
 #zen-main-app-wrapper {

@@ -33,14 +33,11 @@
     --nebula-mods-card-surface: var(--nebula-settings-card-surface) !important;
     --nebula-mods-card-border: var(--nebula-settings-card-border) !important;
     --background-color-box: var(--nebula-settings-card-surface) !important;
-    --zen-settings-secondary-background: var(
-      --nebula-settings-section-surface
-    ) !important;
     --zen-squircle-value: 1 !important;
     --border-radius-medium: var(--nebula-settings-radius) !important;
     --border-radius-large: var(--nebula-settings-radius) !important;
     --button-border-radius: var(--nebula-settings-radius) !important;
-    --input-text-border-radius: var(--nebula-settings-radius) !important;
+    --input-border-radius: var(--nebula-settings-radius) !important;
     --input-search-border-radius: var(--nebula-settings-radius) !important;
     --card-border-radius: var(--nebula-settings-radius) !important;
     --card-border-radius-compact: var(--nebula-settings-radius) !important;
@@ -64,7 +61,7 @@
       rgb(255 255 255 / 72%),
       rgb(255 255 255 / 28%)
     ) !important;
-    --input-text-background-color: light-dark(
+    --input-background-color: light-dark(
       rgb(255 255 255 / 40%),
       rgb(0 0 0 / 22%)
     ) !important;
@@ -266,8 +263,8 @@
     #searchInput {
       /* The header supplies the frost. Keep one lighter field surface on the
        * moz-input-search host rather than filling its shadow input again. */
-      --input-text-background-color: transparent !important;
-      --input-text-border: 1px solid
+      --input-background-color: transparent !important;
+      --input-border: 1px solid
         light-dark(rgb(0 0 0 / 14%), rgb(255 255 255 / 14%)) !important;
 
       background-color: light-dark(
@@ -295,7 +292,7 @@
 
       #searchInput,
       #searchInput:focus-within {
-        --input-text-border: 1px solid CanvasText !important;
+        --input-border: 1px solid CanvasText !important;
 
         background-color: Canvas !important;
         backdrop-filter: none !important;

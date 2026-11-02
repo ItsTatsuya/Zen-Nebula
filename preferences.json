@@ -343,6 +343,13 @@
     "defaultValue": false
   },
   {
+    "type": "checkbox",
+    "property": "nebula-blur-popups",
+    "label": "Blur menus and popups (Windows 11, restart required)",
+    "margin": "12px 0",
+    "defaultValue": true
+  },
+  {
     "type": "text",
     "label": "🌎 Behavior",
     "margin": "24px 0 12px",

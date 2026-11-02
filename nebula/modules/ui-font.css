@@ -7,6 +7,9 @@
  *
  * Never set font-family on #navigator-toolbox itself — that restyles the
  * compact sidebar host of backdrop-filter and kills glass.
+ *
+ * nebula/content/better-pdf.css repeats these stacks for pdf.js; keep the
+ * two in sync.
  */
 
 @media (-moz-pref("nebula-ui-font", "poppins")) {

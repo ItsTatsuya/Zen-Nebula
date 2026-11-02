@@ -2,7 +2,6 @@
 @-moz-document url-prefix("about:preferences"), url-prefix("about:settings") {
   :root {
     --zen-colors-tertiary: transparent !important;
-    --zen-settings-secondary-background: transparent !important;
   }
 
   #preferences-root {

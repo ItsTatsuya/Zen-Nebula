@@ -32,12 +32,19 @@ zen-library {
 
 /* Transparent about: pages leave the blur see-through; see sidebar.css. */
 @media (-moz-pref("browser.tabs.allow_transparent_browser")) {
-  :root[nebula-transparent-page] zen-library {
-    backdrop-filter: url("../filters/glass-underlay.svg#dark") !important;
+  :root[nebula-transparent-page] :is(zen-library, #zen-library-download-list) {
+    backdrop-filter: var(
+      --nebula-glass-underlay-dark,
+      url("../filters/glass-underlay.svg#dark")
+    ) !important;
   }
 
-  :root[nebula-transparent-page][zen-should-be-dark-mode="false"] zen-library {
-    backdrop-filter: url("../filters/glass-underlay.svg#light") !important;
+  :root[nebula-transparent-page][zen-should-be-dark-mode="false"]
+    :is(zen-library, #zen-library-download-list) {
+    backdrop-filter: var(
+      --nebula-glass-underlay-light,
+      url("../filters/glass-underlay.svg#light")
+    ) !important;
   }
 }
 
@@ -141,14 +148,13 @@ zen-library #zen-library-side {
 
 /* Keep the preview anchored to the footer, covering the player's space. */
 #zen-library-download-list {
-  /* Match the application menu's panel surface, rather than sidebar glass. */
-  background: var(--arrowpanel-background) !important;
-  color: var(--panel-text-color) !important;
-  backdrop-filter: none !important;
-  border: 1px solid
-    color-mix(in srgb, var(--panel-border-color) 30%, transparent) !important;
-  border-radius: var(--panel-border-radius) !important;
-  box-shadow: var(--panel-box-shadow) !important;
+  /* Frosted glass, like the library island it previews. */
+  background: var(--nebula-color-glass) !important;
+  color: var(--nebula-library-text) !important;
+  backdrop-filter: var(--nebula-glass) !important;
+  border: 1px solid var(--nebula-color) !important;
+  border-radius: var(--nebula-border-radius) !important;
+  box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
   bottom: 100% !important;
   left: 0;
   right: auto;
@@ -171,6 +177,24 @@ zen-library #zen-library-side {
     visibility: visible !important;
     pointer-events: auto !important;
     transition-delay: 0s !important;
+  }
+}
+
+/* The compact titlebar's own blur makes it a backdrop root, which leaves the
+   nested preview nothing to sample. While the preview shows, blur the
+   titlebar's background layer instead, a sibling of the preview. */
+:root[zen-compact-mode="true"]:has(
+    #zen-sidebar-foot-buttons:is(
+      [zen-library-stack-open],
+      [zen-library-stack-closing]
+    )
+  )
+  #titlebar {
+  backdrop-filter: none !important;
+
+  /* border-radius already rounds the blur; a clip-path would cut the shadow. */
+  > :is(.zen-toolbar-background, .zen-browser-generic-background) {
+    backdrop-filter: var(--nebula-glass) !important;
   }
 }
 

@@ -68,6 +68,24 @@
   ) !important;
 }
 
+/* Opaque glass when blur is unwanted or cannot work: the OS asks for reduced
+ * transparency (Windows turns it on with Energy Saver), or Zen detected
+ * software rendering, which cannot blur the page behind the chrome. */
+@media (prefers-reduced-transparency: reduce) {
+  :root {
+    --nebula-glass: none !important;
+    --nebula-color-glass: light-dark(
+      rgb(242 242 242),
+      rgb(28 28 28)
+    ) !important;
+  }
+}
+
+:root[zen-no-acrylic="true"] {
+  --nebula-glass: none !important;
+  --nebula-color-glass: light-dark(rgb(242 242 242), rgb(28 28 28)) !important;
+}
+
 /* Route Firefox and Zen radius tokens through the Nebula scale so native
  * widgets (menus, panels, toolbar buttons, folders, the media player) follow
  * the UI corner radius setting. Elements that redefine a token locally are

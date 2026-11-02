@@ -329,12 +329,12 @@
     transform: scale(1.05);
     filter: blur(15px) !important;
     opacity: 1;
+    /* No will-change: it would keep a layer for every background panel. */
     transition:
       transform 0.2s ease,
       border-radius 0.2s ease,
       filter 0.2s ease,
       opacity 0.2s !important;
-    will-change: transform, filter, opacity;
   }
 
   #tabbrowser-tabpanels

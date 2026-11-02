@@ -1,7 +1,68 @@
 /* ------------ BETTER PDF VIEWER ----------- */
-/* Font stacks for the theme's font preference. Pages outside pdf.js only
- * receive the unused variables. */
-@import url("../modules/ui-font.css");
+
+/* This sheet is registered for every page, so the font stacks from
+ * ui-font.css are repeated here on the pdf.js root only. Importing that file
+ * would expose the user's font choice to any web page. Keep both in sync. */
+html[mozdisallowselectionprint] {
+  @media (-moz-pref("nebula-ui-font", "poppins")) {
+    --nebula-ui-font: "Poppins", system-ui, "Segoe UI", sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "system-ui")) {
+    --nebula-ui-font: system-ui, "Segoe UI", "Segoe UI Variable", sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "segoe-ui")) {
+    --nebula-ui-font: "Segoe UI", "Segoe UI Variable", system-ui, sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "segoe-ui-variable")) {
+    --nebula-ui-font: "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "inter")) {
+    --nebula-ui-font: "Inter", system-ui, "Segoe UI", sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "comfortaa")) {
+    --nebula-ui-font: "Comfortaa", system-ui, "Segoe UI", sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "geist")) {
+    --nebula-ui-font: "Geist", system-ui, "Segoe UI", sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "ibm-plex-sans")) {
+    --nebula-ui-font: "IBM Plex Sans", system-ui, "Segoe UI", sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "arial")) {
+    --nebula-ui-font: "Arial", "Helvetica Neue", sans-serif;
+  }
+  @media (-moz-pref("nebula-ui-font", "cascadia-code")) {
+    --nebula-ui-font: "Cascadia Code", "Cascadia Mono", "Consolas", monospace;
+  }
+  @media (-moz-pref("nebula-ui-font", "consolas")) {
+    --nebula-ui-font: "Consolas", "Cascadia Mono", monospace;
+  }
+  @media (-moz-pref("nebula-ui-font-custom-enable")) {
+    --nebula-ui-font:
+      var(--nebula-ui-font-custom), system-ui, "Segoe UI", sans-serif;
+  }
+
+  --nebula-ui-font-weight: 400;
+
+  @media (-moz-pref("nebula-ui-font-weight", "100")) {
+    --nebula-ui-font-weight: 100;
+  }
+  @media (-moz-pref("nebula-ui-font-weight", "200")) {
+    --nebula-ui-font-weight: 200;
+  }
+  @media (-moz-pref("nebula-ui-font-weight", "300")) {
+    --nebula-ui-font-weight: 300;
+  }
+  @media (-moz-pref("nebula-ui-font-weight", "500")) {
+    --nebula-ui-font-weight: 500;
+  }
+  @media (-moz-pref("nebula-ui-font-weight", "600")) {
+    --nebula-ui-font-weight: 600;
+  }
+  @media (-moz-pref("nebula-ui-font-weight", "700")) {
+    --nebula-ui-font-weight: 700;
+  }
+}
 
 html[mozdisallowselectionprint] {
   --pdf-js-pseudobg-bg: #dedede;
@@ -74,16 +135,6 @@ html[mozdisallowselectionprint] * {
     var(--natsumi-colors-primary) 20%,
     white 80%
   );
-  --natsumi-colors-tertiary: color-mix(
-    in srgb,
-    var(--natsumi-primary-color) 2%,
-    white 98%
-  );
-  --natsumi-colors-primary-foreground: color-mix(
-    in srgb,
-    var(--natsumi-primary-color) 80%,
-    white 20%
-  );
 
   @media (prefers-color-scheme: dark) {
     --natsumi-colors-primary: color-mix(
@@ -95,16 +146,6 @@ html[mozdisallowselectionprint] * {
       in srgb,
       var(--natsumi-primary-color) 30%,
       #202020 70%
-    );
-    --natsumi-colors-tertiary: color-mix(
-      in srgb,
-      var(--natsumi-primary-color) 1%,
-      #202020 99%
-    );
-    --natsumi-colors-primary-foreground: color-mix(
-      in srgb,
-      var(--natsumi-primary-color) 80%,
-      white 20%
     );
   }
 

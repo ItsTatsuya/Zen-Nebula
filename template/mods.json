@@ -4,9 +4,9 @@
     "name": "Nebula Nova",
     "description": "A glass-inspired theme for Zen Browser with customizable blur, animation, and media artwork.",
     "createdAt": "2025-05-31",
-    "updatedAt": "2026-10-17",
+    "updatedAt": "2026-11-02",
     "homepage": "https://github.com/ItsTatsuya/Zen-Nebula",
-    "version": "3.6.0",
+    "version": "3.6.1",
     "image": "https://raw.githubusercontent.com/ItsTatsuya/Zen-Nebula/main/screenshots/base.png",
     "style": {
       "chrome": "userChrome.css",

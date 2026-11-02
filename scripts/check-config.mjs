@@ -267,6 +267,14 @@ assert.ok(
   ),
   "pdf.js pages need the custom font family bridged too",
 );
+const underlay =
+  /--nebula-glass-underlay-dark: url\("data:image\/svg\+xml;charset=utf-8,([^"#]+)#dark"\)/.exec(
+    sheet,
+  );
+assert.ok(
+  underlay && decodeURIComponent(underlay[1]).includes('stdDeviation="32"'),
+  "Transparent about: pages need the underlay built from the glass settings",
+);
 saved.set("var-nebula-border-radius", "invalid");
 polyfill.syncConfigVariables();
 assert.equal(registered.size, 1);

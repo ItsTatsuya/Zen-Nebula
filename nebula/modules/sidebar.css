@@ -61,15 +61,19 @@
   }
 
   /* Transparent about: pages leave the blur see-through, so they need an
-   * opaque floor. Gecko skips CSS filters after a url() filter, so Nebula's
-   * SVG filter supplies the floor and the blur together. */
+   * opaque floor. Gecko skips CSS filters after a url() filter, so an SVG
+   * filter supplies the floor and the blur together. The core script
+   * generates it from the glass settings; the bundled file is the fallback. */
   :root[zen-compact-mode="true"][nebula-transparent-page]:not(
       [inDOMFullscreen="true"]
     )
     #navigator-toolbox:not([animate="true"])
     #titlebar
     > :is(.zen-toolbar-background, .zen-browser-generic-background) {
-    backdrop-filter: url("../filters/glass-underlay.svg#dark") !important;
+    backdrop-filter: var(
+      --nebula-glass-underlay-dark,
+      url("../filters/glass-underlay.svg#dark")
+    ) !important;
   }
 
   :root[zen-compact-mode="true"][nebula-transparent-page][zen-should-be-dark-mode="false"]:not(
@@ -78,7 +82,10 @@
     #navigator-toolbox:not([animate="true"])
     #titlebar
     > :is(.zen-toolbar-background, .zen-browser-generic-background) {
-    backdrop-filter: url("../filters/glass-underlay.svg#light") !important;
+    backdrop-filter: var(
+      --nebula-glass-underlay-light,
+      url("../filters/glass-underlay.svg#light")
+    ) !important;
   }
 }
 

@@ -2,7 +2,7 @@
 // @name           Nebula Nova
 // @description    Central engine for Nebula Nova with all modules
 // @author         ItsTatsuya
-// @version        3.6.0
+// @version        3.6.1
 // @include        main
 // @grant          none
 // ==/UserScript==
@@ -159,13 +159,20 @@
             data.startsWith("var-nebula-") ||
             data === "nebula-ui-font-custom"
           ) {
-            this.syncConfigVariables();
+            // Text fields write on every keystroke; restyle once they settle.
+            clearTimeout(this._configSyncTimer);
+            this._configSyncTimer = setTimeout(() => {
+              this._configSyncTimer = null;
+              this.syncConfigVariables();
+            }, 150);
           }
         },
       };
 
       this.updateFaviconColor = this.updateFaviconColor.bind(this);
+      this.updateTransparentPage = this.updateTransparentPage.bind(this);
       this._locationListener = null;
+      this._configSyncTimer = null;
     }
 
     async init() {
@@ -249,15 +256,18 @@
       // Initial run
       this.updateFaviconColor();
 
-      // Tabbrowser also calls onLocationChange when the selected tab changes.
+      // Split view and Glance show more than the selected tab, so watch every
+      // tab's location; selecting a tab does not fire this listener.
       this._locationListener = {
-        onLocationChange: () => this.updateTransparentPage(),
-        QueryInterface: ChromeUtils.generateQI([
-          "nsIWebProgressListener",
-          "nsISupportsWeakReference",
-        ]),
+        onLocationChange: (_browser, webProgress) => {
+          if (webProgress?.isTopLevel) this.updateTransparentPage();
+        },
       };
-      gBrowser.addProgressListener(this._locationListener);
+      gBrowser.addTabsProgressListener(this._locationListener);
+      gBrowser.tabContainer.addEventListener(
+        "TabSelect",
+        this.updateTransparentPage,
+      );
       this.updateTransparentPage();
 
       Nebula.logger.log("✅ [Polyfill] Detection active.");
@@ -265,9 +275,24 @@
 
     /** Nebula makes about: pages transparent; the sidebar glass needs an opaque floor there. */
     updateTransparentPage() {
+      if (this._destroyed || !window.gBrowser) return;
+      const selected = gBrowser.selectedTab;
+      const visible = new Set([selected]);
+      // A split view shows its whole group; Glance shows the parent tab too.
+      if (selected?.group?.hasAttribute("split-view-group")) {
+        for (const tab of selected.group.tabs) visible.add(tab);
+      }
+      const glanceId = selected?.getAttribute("glance-id");
+      if (glanceId) {
+        for (const tab of gBrowser.tabs) {
+          if (tab.getAttribute("glance-id") === glanceId) visible.add(tab);
+        }
+      }
       this.root.toggleAttribute(
         "nebula-transparent-page",
-        !!gBrowser.currentURI?.schemeIs("about"),
+        [...visible].some((tab) =>
+          tab?.linkedBrowser?.currentURI?.schemeIs("about"),
+        ),
       );
     }
 
@@ -361,14 +386,15 @@
         const sheets = Cc[
           "@mozilla.org/content/style-sheet-service;1"
         ].getService(Ci.nsIStyleSheetService);
+        // Every window builds the same sheet from the same prefs, so they
+        // share one registration instead of restyling once per window.
         // pdf.js opens at the PDF's own URL, so its root is matched by the
         // attribute better-pdf.css also guards on.
-        const css = `/* Nebula Nova window ${window.windowUtils.outerWindowID} */
-          @-moz-document url("chrome://browser/content/browser.xhtml"),
+        const css = `@-moz-document url("chrome://browser/content/browser.xhtml"),
             url("chrome://browser/content/places/bookmarksSidebar.xhtml"),
             url("chrome://browser/content/places/historySidebar.xhtml"),
             url-prefix("about:preferences") {
-            :root, :root#main-window { ${declarations} }
+            :root, :root#main-window { ${declarations} ${this._underlayDeclarations()} }
           }
           html[mozdisallowselectionprint] {
             --nebula-ui-font-custom: ${customFont ? this.configCssValue(customFont) : "system-ui"} !important;
@@ -378,14 +404,57 @@
         );
         if (this._configVariablesSheet?.spec === uri.spec) return;
         if (this._configVariablesSheet) {
-          sheets.unregisterSheet(this._configVariablesSheet, sheets.USER_SHEET);
+          // Another window may already have replaced the shared sheet.
+          try {
+            sheets.unregisterSheet(
+              this._configVariablesSheet,
+              sheets.USER_SHEET,
+            );
+          } catch {}
           this._configVariablesSheet = null;
         }
-        sheets.loadAndRegisterSheet(uri, sheets.USER_SHEET);
+        if (!sheets.sheetRegistered(uri, sheets.USER_SHEET)) {
+          sheets.loadAndRegisterSheet(uri, sheets.USER_SHEET);
+        }
         this._configVariablesSheet = uri;
       } catch (err) {
         Nebula.logger.warn(`[Config] Could not sync visual variables: ${err}`);
       }
+    }
+
+    /**
+     * Transparent about: pages need an opaque floor under the sidebar blur.
+     * Gecko skips CSS filter functions after a url() filter, so the floor and
+     * the user's blur and saturation are generated into one SVG filter.
+     */
+    _underlayDeclarations() {
+      const value = (suffix) => {
+        const entry = this._configPrefs.find((e) =>
+          e.property.endsWith(suffix),
+        );
+        return entry ? this.configCssValue(entry) : "";
+      };
+      const blur = /^(\d*\.?\d+)px$/.exec(value("glass-blur"));
+      const saturation = /^(\d*\.?\d+)(%?)$/.exec(value("glass-saturation"));
+      // Other units cannot become SVG numbers; keep the bundled filter then.
+      if (!blur || !saturation) return "";
+      const amount = saturation[2]
+        ? Number(saturation[1]) / 100
+        : Number(saturation[1]);
+      const filter = (id, color) =>
+        `<filter id="${id}" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">` +
+        `<feFlood flood-color="${color}" result="floor"/>` +
+        `<feMerge result="base"><feMergeNode in="floor"/><feMergeNode in="SourceGraphic"/></feMerge>` +
+        `<feGaussianBlur in="base" stdDeviation="${blur[1]}" edgeMode="duplicate"/>` +
+        `<feColorMatrix type="saturate" values="${amount}" result="glass"/>` +
+        `<feMerge><feMergeNode in="floor"/><feMergeNode in="glass"/></feMerge></filter>`;
+      const svg = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+        `<svg xmlns="http://www.w3.org/2000/svg">${filter("dark", "black")}${filter("light", "white")}</svg>`,
+      )}`;
+      return (
+        `--nebula-glass-underlay-dark: url("${svg}#dark") !important;` +
+        `--nebula-glass-underlay-light: url("${svg}#light") !important;`
+      );
     }
 
     /**
@@ -423,10 +492,10 @@
 
     _migrateUiFontPref(prefs) {
       const name = "nebula-ui-font";
+      // Unset prefs are left alone: ensureRuntimePrefs supplies defaults, and
+      // a written user value would pin today's default forever.
       const type = prefs.getPrefType(name);
-      if (type === 0) {
-        prefs.setStringPref(name, "browser");
-      } else if (type === prefs.PREF_INT || type === 64) {
+      if (type === prefs.PREF_INT || type === 64) {
         const map = [
           "browser",
           "system-ui",
@@ -446,10 +515,6 @@
         if (current === "inherit") {
           prefs.setStringPref(name, "browser");
         }
-      }
-
-      if (prefs.getPrefType("nebula-ui-font-weight") === 0) {
-        prefs.setStringPref("nebula-ui-font-weight", "400");
       }
 
       const oldCustom = "var-nebula-ui-font-custom";
@@ -715,24 +780,28 @@
       this._faviconRequest++;
       this._faviconLoadCancel?.();
 
-      try {
-        this._prefs?.removeObserver(
-          "nebula-active-tab-glow",
-          this._prefObserver,
-        );
-        this._prefs?.removeObserver(
-          "nebula-ui-font-custom",
-          this._prefObserver,
-        );
-      } catch {}
+      if (this._configSyncTimer) clearTimeout(this._configSyncTimer);
+      this._configSyncTimer = null;
+      for (const name of [
+        "nebula-active-tab-glow",
+        "nebula-ui-font-custom",
+        "var-nebula-",
+      ]) {
+        try {
+          this._services().prefs.removeObserver(name, this._prefObserver);
+        } catch {}
+      }
       this._prefs = null;
 
+      // The variables sheet is shared; only the last browser window drops it.
+      let otherWindow = false;
       try {
-        this._services().prefs.removeObserver(
-          "var-nebula-",
-          this._prefObserver,
-        );
-        if (this._configVariablesSheet) {
+        otherWindow = [
+          ...this._services().wm.getEnumerator("navigator:browser"),
+        ].some((win) => win !== window && !win.closed);
+      } catch {}
+      try {
+        if (this._configVariablesSheet && !otherWindow) {
           const sheets = Cc[
             "@mozilla.org/content/style-sheet-service;1"
           ].getService(Ci.nsIStyleSheetService);
@@ -753,8 +822,12 @@
           "TabAttrModified",
           this.updateFaviconColor,
         );
+        gBrowser.tabContainer.removeEventListener(
+          "TabSelect",
+          this.updateTransparentPage,
+        );
         if (this._locationListener)
-          gBrowser.removeProgressListener(this._locationListener);
+          gBrowser.removeTabsProgressListener(this._locationListener);
         this._locationListener = null;
       }
       this.root.removeAttribute("nebula-transparent-page");
@@ -1055,6 +1128,7 @@
 
     init() {
       this._destroyed = false;
+      this._controllerWaitTries = 0;
       this._waitForController();
     }
 
@@ -1066,7 +1140,8 @@
         document.querySelector("#zen-media-controls-toolbar")
       ) {
         this._onControllerReady();
-      } else {
+      } else if (++this._controllerWaitTries <= 150) {
+        // Popup windows never get the media toolbar; give up after 30s.
         this._controllerWaitTimer = setTimeout(() => {
           this._controllerWaitTimer = null;
           this._waitForController();
@@ -1898,6 +1973,67 @@
     }
   }
 
+  // ========== NebulaPopupBlurModule ==========
+  /**
+   * Popups are separate OS windows, so CSS cannot blur behind them. The
+   * toggle switches on Windows 11's acrylic backdrop for popups instead.
+   */
+  class NebulaPopupBlurModule {
+    static PREF = "nebula-blur-popups";
+    static FIREFOX_PREF = "widget.windows.mica.popups";
+
+    constructor() {
+      this._prefs = null;
+      this._prefObserver = { observe: () => this._sync() };
+    }
+
+    init() {
+      try {
+        this._prefs =
+          globalThis.Services?.prefs ||
+          ChromeUtils.importESModule("resource://gre/modules/Services.sys.mjs")
+            .Services.prefs;
+        this._prefs.addObserver(NebulaPopupBlurModule.PREF, this._prefObserver);
+      } catch (err) {
+        Nebula.logger.warn(`⚠️ [PopupBlur] Could not observe settings: ${err}`);
+      }
+      this._sync();
+    }
+
+    // Firefox's default (2, auto) already enables the backdrop on Windows 11,
+    // so only write the pref when the effective value disagrees: 0 turns it
+    // off, and turning it back on drops that 0 (forcing 1 only if needed).
+    _sync() {
+      if (!this._prefs) return;
+      const { PREF, FIREFOX_PREF } = NebulaPopupBlurModule;
+      try {
+        const current = this._prefs.getIntPref(FIREFOX_PREF, 2);
+        if (!this._prefs.getBoolPref(PREF, true)) {
+          if (current !== 0) this._prefs.setIntPref(FIREFOX_PREF, 0);
+        } else if (current === 0) {
+          this._prefs.clearUserPref(FIREFOX_PREF);
+          if (this._prefs.getIntPref(FIREFOX_PREF, 2) === 0) {
+            this._prefs.setIntPref(FIREFOX_PREF, 1);
+          }
+        }
+      } catch (err) {
+        Nebula.logger.warn(
+          `⚠️ [PopupBlur] Could not sync ${FIREFOX_PREF}: ${err}`,
+        );
+      }
+    }
+
+    destroy() {
+      try {
+        this._prefs?.removeObserver(
+          NebulaPopupBlurModule.PREF,
+          this._prefObserver,
+        );
+      } catch {}
+      this._prefs = null;
+    }
+  }
+
   // Register Nebula Modules
   Nebula.register(NebulaPolyfillModule);
   Nebula.register(NebulaGradientSliderModule);
@@ -1907,6 +2043,7 @@
   Nebula.register(NebulaMenuModule);
   Nebula.register(NebulaCtrlTabDualBackgroundModule);
   Nebula.register(NebulaSearchSuggestionsModule);
+  Nebula.register(NebulaPopupBlurModule);
 
   // Start the core
   Nebula.init();

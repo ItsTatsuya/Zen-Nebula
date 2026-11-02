@@ -1,6 +1,6 @@
 # Nebula Nova configuration
 
-Nebula Nova 3.6.0 is maintained by ItsTatsuya.
+Nebula Nova 3.6.1 is maintained by ItsTatsuya.
 
 `preferences.json` is the source for labels, types, defaults and choices. The core script reads that same file at startup. `nebula/config.css` defines the visual tokens and fallback values for CSS-only use. Keep preference keys stable so installed users retain their choices.
 
@@ -24,16 +24,17 @@ Nebula Nova 3.6.0 is maintained by ItsTatsuya.
 - Media artwork requires an active media session exposing artwork; the artwork style takes effect when media backgrounds are enabled.
 - Bookmarks visibility options operate when the bookmarks toolbar is enabled in Zen. Compact mode with its toolbar hidden retains Zen’s native behavior to avoid competing hover panels.
 - Reduced-motion mode takes precedence over animation options.
+- Reduced transparency (Windows turns it on with Energy Saver) and Zen's software-rendering fallback replace the glass with opaque surfaces, since blur is either unwanted or cannot sample the page.
 
 ## Preference audit
 
-All 48 fields have explicit typed defaults and consumers. The automated audit checks that each field has a code consumer outside comments and a row in this table, dropdown variants, metadata, saved-value preservation, runtime defaults and CSS variable registration. GPU blur and native widget appearance still require a live Zen visual check.
+All 49 fields have explicit typed defaults and consumers. The automated audit checks that each field has a code consumer outside comments and a row in this table, dropdown variants, metadata, saved-value preservation, runtime defaults and CSS variable registration. GPU blur and native widget appearance still require a live Zen visual check.
 
 | Group             | Preference                                         | Default                        | Consumer                                                                                             |
 | ----------------- | -------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------- |
 | Appearance        | `nebula-ui-font`                                   | `"browser"`                    | `nebula/content/better-pdf.css`, `nebula/modules/ui-font.css`, `js/nebula.uc.js`                     |
-| Appearance        | `nebula-ui-font-weight`                            | `"400"`                        | `nebula/modules/ui-font.css`, `js/nebula.uc.js`                                                      |
-| Appearance        | `nebula-ui-font-custom-enable`                     | `false`                        | `nebula/modules/ui-font.css`, `js/nebula.uc.js`                                                      |
+| Appearance        | `nebula-ui-font-weight`                            | `"400"`                        | `nebula/content/better-pdf.css`, `nebula/modules/ui-font.css`, `js/nebula.uc.js`                     |
+| Appearance        | `nebula-ui-font-custom-enable`                     | `false`                        | `nebula/content/better-pdf.css`, `nebula/modules/ui-font.css`, `js/nebula.uc.js`                     |
 | Appearance        | `nebula-ui-font-custom`                            | `""`                           | `nebula/modules/ui-font.css`, `js/nebula.uc.js`                                                      |
 | Appearance        | `var-nebula-glass-blur`                            | `"32px"`                       | `nebula/config.css`, `js/nebula.uc.js`                                                               |
 | Appearance        | `var-nebula-glass-saturation`                      | `"140%"`                       | `nebula/config.css`, `js/nebula.uc.js`                                                               |
@@ -60,6 +61,7 @@ All 48 fields have explicit typed defaults and consumers. The automated audit ch
 | Appearance        | `zen.view.experimental-force-window-controls-left` | `false`                        | `nebula/modules/topbar-buttons.css`                                                                  |
 | Appearance        | `nebula-tabs-no-shadow`                            | `false`                        | `nebula/modules/general-ui.css`                                                                      |
 | Appearance        | `nebula-nogaps-mod`                                | `false`                        | `nebula/modules/general-ui.css`                                                                      |
+| Appearance        | `nebula-blur-popups`                               | `true`                         | `js/nebula.uc.js` (sets `widget.windows.mica.popups`, read by `general-ui.css`)                      |
 | Behavior          | `nebula-tab-switch-animation`                      | `1`                            | `nebula/modules/tab-animations.css`                                                                  |
 | Behavior          | `nebula-tab-loading-animation`                     | `1`                            | `nebula/modules/tab-animations.css`                                                                  |
 | Behavior          | `nebula-urlbar-animation`                          | `1`                            | `nebula/modules/urlbar.css`                                                                          |
@@ -82,16 +84,19 @@ All 48 fields have explicit typed defaults and consumers. The automated audit ch
 
 ## Advanced `about:config` options
 
-These Picture-in-Picture options have no Sine control. Set them as booleans in `about:config`; they are not part of the preference audit above. `nebula/modules/better-pip.css` reads them. `bun run check:config` fails if CSS reads a `nebula` preference that is in neither table.
+These options have no Sine control. Set them as booleans in `about:config`; they are not part of the preference audit above. `nebula/modules/better-pip.css` reads the Picture-in-Picture options and `nebula/content/better-pdf.css` reads the PDF viewer options, which keep the names of the Natsumi PDF styles they came from. `bun run check:config` fails if CSS reads a `nebula` preference that is in neither table.
 
-| Preference                        | Effect                                                                             |
-| --------------------------------- | ---------------------------------------------------------------------------------- |
-| `nebula.pip.disabled`             | Turns off Nebula's Picture-in-Picture styling entirely.                            |
-| `nebula.pip.rounded`              | Rounds the Picture-in-Picture window corners on Windows and macOS (not Linux).     |
-| `nebula.pip.tinted-haze`          | Tints the haze background and controls with the primary color.                     |
-| `nebula.pip.native-border-radius` | Keeps the native window radius and tightens the control margins on narrow windows. |
-| `nebula.theme.force-dark-shadows` | Darkens the Picture-in-Picture control shadow color toward black.                  |
+| Preference                              | Effect                                                                             |
+| --------------------------------------- | ---------------------------------------------------------------------------------- |
+| `nebula.pip.disabled`                   | Turns off Nebula's Picture-in-Picture styling entirely.                            |
+| `nebula.pip.rounded`                    | Rounds the Picture-in-Picture window corners on Windows and macOS (not Linux).     |
+| `nebula.pip.tinted-haze`                | Tints the haze background and controls with the primary color.                     |
+| `nebula.pip.native-border-radius`       | Keeps the native window radius and tightens the control margins on narrow windows. |
+| `nebula.theme.force-dark-shadows`       | Darkens the Picture-in-Picture control shadow color toward black.                  |
+| `natsumi.pdfjs.compact`                 | Hides the PDF viewer toolbar until it is hovered or focused.                       |
+| `natsumi.pdfjs.compact-dynamic`         | With the compact toolbar, keeps it open while the PDF sidebar is open.             |
+| `natsumi.global.highlight-accent-color` | Colors text selection in the PDF viewer with the accent color.                     |
 
 ## Transparent sidebar reference
 
-The transparent-browser path uses the background-layer placement illustrated by [Arc 2.0](https://github.com/YashjitPal/Arc-2.0/blob/main/modules/chrome/sidebar.css), with Nebula’s blur, tint and radius. While an `about:` page (which Nebula makes transparent) is selected, `nebula/filters/glass-underlay.svg` supplies an opaque floor and the blur in one SVG filter, because Gecko skips CSS filter functions after a `url()` filter. Other pages use Nebula’s CSS blur alone. The library panel uses the same filter on those pages. The flag-off titlebar blur is retained.
+The transparent-browser path uses the background-layer placement illustrated by [Arc 2.0](https://github.com/YashjitPal/Arc-2.0/blob/main/modules/chrome/sidebar.css), with Nebula’s blur, tint and radius. While an `about:` page (which Nebula makes transparent) is visible, including in a split view or behind a Glance, an SVG filter supplies an opaque floor and the blur together, because Gecko skips CSS filter functions after a `url()` filter. `js/nebula.uc.js` generates that filter from the glass blur and saturation settings; `nebula/filters/glass-underlay.svg` (32px, 140%) is the fallback when the script is not running or the blur is not in `px`. Other pages use Nebula’s CSS blur alone. The library panel and downloads preview use the same filter on those pages. The flag-off titlebar blur is retained.

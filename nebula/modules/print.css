@@ -50,7 +50,7 @@ printpreview-pagination {
     --button-border-radius: var(--nebula-print-control-radius) !important;
     --border-radius-small: var(--nebula-print-control-radius) !important;
     --border-radius-medium: var(--nebula-print-control-radius) !important;
-    --input-text-border-radius: var(--nebula-print-control-radius) !important;
+    --input-border-radius: var(--nebula-print-control-radius) !important;
     --button-background-color: light-dark(
       rgb(255 255 255 / 44%),
       rgb(255 255 255 / 8%)
@@ -63,7 +63,7 @@ printpreview-pagination {
       rgb(255 255 255 / 76%),
       rgb(255 255 255 / 20%)
     ) !important;
-    --input-text-background-color: light-dark(
+    --input-background-color: light-dark(
       rgb(255 255 255 / 44%),
       rgb(0 0 0 / 20%)
     ) !important;

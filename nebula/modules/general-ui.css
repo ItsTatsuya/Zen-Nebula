@@ -166,6 +166,24 @@ browser[transparent="true"] {
   box-shadow: 0 4px 14px var(--nebula-color-shadow) !important;
 }
 
+/* ------------------- POPUP GLASS ------------------- */
+
+/* Windows draws the acrylic blur, shadow, and 8px corners; tint and outline
+   it like the downloads preview. See NebulaPopupBlurModule. */
+@media (-moz-windows-mica-popups) {
+  /* :is() lifts menupopup above config.css's radius token on menupopup. */
+  :is(menupopup, panel[type="arrow"]:not(#feature-callout)) {
+    --panel-background-color: var(--nebula-color-glass) !important;
+    --panel-border-radius: 8px !important;
+
+    &::part(content) {
+      border-radius: var(--panel-border-radius) !important;
+      outline: 1px solid var(--nebula-color) !important;
+      outline-offset: -1px !important;
+    }
+  }
+}
+
 /* ------------------- MENU ANIMATIONS ------------------- */
 
 /* Keyframes */
@@ -200,15 +218,14 @@ browser[transparent="true"] {
 }
 
 #ctrlTab-panel {
-  --panel-background: var(--nebula-color-glass) !important;
+  --panel-background-color: var(--nebula-color-glass) !important;
 
   border-radius: var(--nebula-radius-outer) !important;
-  scale: 0.7;
+  scale: 0.7 !important;
   box-shadow: 0 4px 20px var(--nebula-color-shadow) !important;
 }
 
 #ctrlTab-panel:has(.ctrlTab-preview:not([hidden="true"])) {
-  scale: 0.7 !important;
   border-radius: var(--nebula-border-radius);
 }
 
